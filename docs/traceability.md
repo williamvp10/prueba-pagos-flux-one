@@ -92,3 +92,5 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 | OPS-01 | Arranque limpio | smoke | `ops-01.smoke.spec.ts` | PENDIENTE; sin implementación |
 | OPS-02 | Secretos y redes | smoke | `ops-02.smoke.spec.ts` | PENDIENTE; sin implementación |
 | SDD-01 | Contrato primero | review | `sdd-01.review.spec.ts` | PENDIENTE; sin implementación |
+
+| API-01 | Swagger por servicio | contract | `swagger.contract.spec.ts` | PENDIENTE; sin implementación |

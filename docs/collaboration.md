@@ -1,6 +1,6 @@
 # Coordinación de implementación
 
-## Estrategia: dos frentes, un integrador
+## Estrategia: tres frentes, un integrador
 
 Mismo repositorio y checkout, con propiedad exclusiva por rutas. Main sigue siendo trunk; el agente auxiliar no toca índice ni rama. El coordinador integra entregas terminadas con commits pequeños por bloque. Esto evita conflictos de lockfile, staging, contratos y formato global.
 
@@ -10,7 +10,8 @@ Mismo repositorio y checkout, con propiedad exclusiva por rutas. Main sigue sien
 | Monorepo e infraestructura | Chat coordinador | manifests raíz, lockfile, infra/**, Compose, .env.example | Pendiente de bootstrap |
 | Pagos y contratos compartidos | Chat coordinador | apps/payments/**, packages/**, contratos y specs | Pendiente de implementación |
 | Mock bancario | Agente auxiliar externo | apps/rail-mock/** y docs/handoffs/rail-mock.md | RESERVADO; prompt listo, no iniciado desde este chat |
-| Auth, audit y frontend | Sin tarea auxiliar asignada | apps/auth/**, apps/audit/**, apps/web/** | Coordinador reasigna después del mock; no empezar en paralelo por iniciativa propia |
+| Auth y audit | Chat coordinador | apps/auth/**, apps/audit/** | Implementación backend junto con pagos |
+| Frontend y BFF | Segundo auxiliar externo | apps/web/** y docs/handoffs/frontend.md | RESERVADO; prompt frontend-agent.md listo |
 
 El estado de esta tabla es una asignación, no evidencia de procesos en ejecución. Solo cambia el coordinador. La sesión iniciada por el usuario con el prompt será responsable del mock; no se ha despachado un agente duplicado automáticamente.
 
@@ -39,3 +40,9 @@ No ejecutar installs desde el auxiliar; reportar dependencias necesarias en hand
 6. Coordinador actualiza matriz/ai-log, commit y grafo. Devuelve nueva tarea si procede; no ampliar alcance silenciosamente.
 
 Si surge una necesidad compartida, dejar propuesta concreta en handoff y continuar trabajo local independiente. Ante duda de contrato, no construir comportamiento incompatible para avanzar más rápido.
+
+## Integración del frontend y Swagger
+
+El auxiliar frontend posee apps/web y su handoff. Cliente compartido @fluxone/api-client lo genera el coordinador; exports tipados ServicePaths/ServiceComponents y BrowserPaths/BrowserComponents. APIs privadas configuradas con AUTH_API_URL/PAYMENTS_API_URL/AUDIT_API_URL (base /api/v1). El coordinador no crea ni reformatea apps/web mientras el auxiliar esté activo.
+
+Swagger es responsabilidad del backend: cada servicio sirve /docs y /docs-json con su subconjunto del OpenAPI autoritativo; no regenerar contrato desde decorators como fuente. Frontend no debe crear Swagger alternativo.

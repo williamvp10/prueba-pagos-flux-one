@@ -127,3 +127,7 @@ Un reverso tiene máquina independiente PENDING → PROCESSING → COMPLETED/FAI
 - Reinicios de workers recuperan leases expirados. Después de una llamada ambigua se consulta antes de reenviar.
 - La demo en una VPS no es alta disponibilidad. Volúmenes no sustituyen backups.
 - Consultas autorizadas a audit tienen dependencia de disponibilidad de payments; es un tradeoff explícito para evitar replicar ACL en v1.
+
+## Swagger y API First
+
+Cada aplicación NestJS monta Swagger UI en /docs y JSON en /docs-json con @nestjs/swagger; carga el contrato raíz y filtra operaciones por su tag Auth/Payments/Audit, preservando components y security. No hay generación desde implementación que reemplace la fuente YAML. Dentro de Swagger usar server relativo /api/v1 para Try it out sobre el mismo servicio. Los servicios continúan privados en Compose/Dokploy.

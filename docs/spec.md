@@ -406,3 +406,11 @@ Estado: aprobada para implementación; evidencia pendiente. Fuente: PDF de la pr
 ## Aceptación de la entrega
 
 Todos los criterios financieros, de autorización, aislamiento y recuperación son core. Si el tiempo limita la UI o despliegue VPS, registrar lo pendiente explícitamente; no marcar criterios como cubiertos por existir un documento. El Compose funcional y los tres servicios siguen siendo requisitos de entrega.
+
+### Documentación interactiva backend
+
+#### API-01 — Swagger por servicio
+
+- **Given:** auth, payments o audit en ejecución.
+- **When:** se consulta /docs o /docs-json del servicio en red privada.
+- **Then:** Swagger UI y documento JSON describen solo sus operaciones, schemas y bearer auth, derivados del OpenAPI aprobado; no se exponen secretos ni rutas de otros servicios.

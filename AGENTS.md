@@ -22,7 +22,7 @@ Comandos y límites de Graphify: `docs/graphify.md`. Usar wrapper fijado a graph
 ## 3. Trabajo paralelo sin choques
 
 - El coordinador de este chat es propietario de raíz, contratos, documentación central, infraestructura, paquetes compartidos y pagos.
-- La tarea preparada para el segundo agente es exclusivamente `apps/rail-mock/**` y `docs/handoffs/rail-mock.md`. Todavía no implica que otro agente esté ejecutándola.
+- Auxiliar del riel: exclusivamente `apps/rail-mock/**` y `docs/handoffs/rail-mock.md`. Auxiliar frontend: exclusivamente `apps/web/**` y `docs/handoffs/frontend.md`. Usuario inicia las dos sesiones; no duplicarlas automáticamente. Coordinador conserva auth/payments/audit, raíz e infraestructura.
 - No empezar otro servicio ni tocar archivos ajenos sin asignación explícita. El prompt de trabajo define alcance; pedir cambio al coordinador si hay bloqueo contractual.
 - Compartimos checkout: solo el coordinador opera el índice Git, crea commits, instala dependencias del workspace y modifica lockfiles. El agente auxiliar no ejecuta git add/commit/stash/reset/checkout/clean ni modifica la rama.
 - Prohibido `git add .` o `git add -A` durante trabajo concurrente. Coordinador añade rutas explícitas y solo integra entregas confirmadas terminadas.
@@ -105,3 +105,7 @@ Todavía no hay scripts pnpm ni Compose funcional: añadir instrucciones ejecuta
 Handoff obligatorio: rutas cambiadas, contrato respetado, criterios cubiertos, comandos y resultados reales, dependencias/variables solicitadas y pendientes. No marcar prueba cubierta por existir un documento. Coordinador actualiza matriz, ai-log, README e integra con commits pequeños sobre main.
 
 No enviar correo, invitaciones ni mensajes a otras personas sin autorización explícita. No falsear fechas, resultados ni autoría. Mantener explicación defendible de cada línea y de los tradeoffs. No hacer push/publicación hasta comprobar configuración y ausencia de secretos.
+
+## Swagger solicitado por el usuario
+
+Auth/payments/audit deben exponer Swagger UI /docs y JSON /docs-json usando @nestjs/swagger con documentos filtrados por tag desde docs/openapi.yaml. Mantener OpenAPI como fuente, bearer auth en Swagger y schemas/errores compatibles. Acceso por red privada, no publicar servicios directamente para mostrar Swagger en VPS. Servir especificación raw por servicio para verificación contractual.
