@@ -79,7 +79,7 @@ async function refreshSession(refreshToken: string, base: string): Promise<Token
       if (!response.ok) return null;
       return await response.json() as Tokens;
     } catch { return null; }
-    finally { if (refreshInFlight.get(refreshKey) === pending) refreshInFlight.delete(refreshKey); }
+    finally { refreshInFlight.delete(refreshKey); }
   })();
   refreshInFlight.set(refreshKey, pending);
   return pending;

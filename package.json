@@ -11,6 +11,7 @@
     "contracts": "openapi-typescript docs/openapi.yaml -o packages/api-client/src/services.d.ts && openapi-typescript docs/browser.openapi.yaml -o packages/api-client/src/browser.d.ts",
     "test": "pnpm build && pnpm --filter @fluxone/payments test && node --test tests/*.test.cjs",
     "test:unit": "pnpm build && pnpm --filter @fluxone/payments test",
+    "test:all": "pnpm test && pnpm --filter @fluxone/rail-mock build && pnpm --filter @fluxone/rail-mock test && pnpm --filter @fluxone/web typecheck && pnpm --filter @fluxone/web test && pnpm --filter @fluxone/web build",
     "setup": "node tools/setup-env.mjs"
   },
   "devDependencies": {
