@@ -2,7 +2,7 @@
 
 Monorepo planeado para un portal de pagos COP con arquitectura hexagonal, SDD, API First y trunk-based development.
 
-**Estado: las tres APIs, el portal/BFF y el riel están integrados en `main`.** Auth, payments y audit usan NestJS/TypeORM y exponen Swagger; el portal Next.js se comunica por el BFF con cookies HttpOnly; el riel conserva respuestas idempotentes en SQLite. Compose define la pila completa. No hay despliegue VPS ni remote configurado.
+**Estado: las tres APIs, el portal/BFF y el riel están integrados en `main`.** Auth, payments y audit usan NestJS/TypeORM y exponen Swagger; el portal Next.js se comunica por el BFF con cookies HttpOnly; el riel conserva respuestas idempotentes en SQLite. Compose define la pila completa. El remote `origin` está configurado; esta integración quedó local y no se hizo push ni despliegue VPS.
 
 ## Leer primero
 
@@ -70,7 +70,7 @@ La suite usa PostgreSQL/RabbitMQ de Compose, crea y destruye una DB y vhost de t
 - Dos usuarios demo: A posee ACC-001/ACC-003; B posee ACC-002. Registro público crea cuenta con saldo cero.
 - No payment links, correo de recuperación, alta libre de beneficiarios ni panel de administración en v1.
 - Objetivo de entrega comunicado: 15 de octubre de 2026, 11:30, America/Bogota; spec inicial antes de las 09:00. El historial real de Git determina los tiempos, sin backdating.
-- Repositorio público, invitaciones y correo de entrega permanecen pendientes; no hay remote configurado.
+- Publicación pública, invitaciones y correo de entrega permanecen pendientes; no se hizo push durante esta integración.
 
 ## Con una hora adicional
 

@@ -29,7 +29,7 @@ Para Mermaid, usar @mermaid-js/mermaid-cli@12.0.0 con Chrome/Chromium disponible
 
 ## Límites de evidencia
 
-En esta verificación documental inicial todavía no existían apps, tests, CI ni Compose. La fase backend posterior se detalla abajo; remote, push, invitaciones, correo y despliegue VPS siguen pendientes.
+En esta verificación documental inicial todavía no existían apps, tests, CI ni Compose. La fase backend posterior se detalla abajo. Hoy `origin` está configurado y `main` conserva commits locales pendientes de push; publicación, invitaciones, correo y despliegue VPS siguen pendientes.
 
 El commit inicial 890d03d se creó a las 09:02:38 -05:00, después del hito de 09:00. Se conserva historial auténtico. Los contratos se corrigieron después mediante otro commit, sin amend ni cambio de fechas.
 
