@@ -53,6 +53,7 @@ let db,
   admin,
   a,
   b,
+  c,
   source,
   target,
   other,
@@ -189,15 +190,34 @@ before(
         },
       })
     ).body;
+    c = (
+      await api("auth", "/auth/login", {
+        method: "POST",
+        body: {
+          email: process.env.DEMO_C_EMAIL,
+          password: process.env.DEMO_C_PASSWORD,
+        },
+      })
+    ).body;
     assert.ok(a.accessToken);
     assert.ok(b.accessToken);
+    assert.ok(c.accessToken);
     const accounts = (
       await api("payments", "/accounts", { token: a.accessToken })
     ).body;
     source = accounts.find((x) => x.code === "ACC-001");
-    target = accounts.find((x) => x.code === "ACC-003");
+    target = (
+      await api("payments", "/accounts", { token: c.accessToken })
+    ).body.find((x) => x.code === "ACC-003");
     other = (await api("payments", "/accounts", { token: b.accessToken }))
       .body[0];
+    assert.equal(accounts.length, 1, "Demo A owns exactly one demo account");
+    assert.equal(
+      (await api("payments", "/accounts", { token: c.accessToken })).body
+        .length,
+      1,
+      "Demo C owns exactly one demo account",
+    );
   },
   { timeout: 30000 },
 );
@@ -328,7 +348,18 @@ test("[PAY-01][IDEM-01][IDEM-02][IDEM-03] 20 concurrent requests cause one debit
     await api("payments", "/accounts", { token: a.accessToken })
   ).body;
   assert.equal(accounts.find((x) => x.id === source.id).balance, "998749.75");
-  assert.equal(accounts.find((x) => x.id === target.id).balance, "1250.25");
+  assert.equal(accounts.length, 1);
+  assert.equal(
+    (await api("payments", "/accounts", { token: c.accessToken })).body.find(
+      (x) => x.id === target.id,
+    ).balance,
+    "1250.25",
+  );
+  assert.ok(
+    (await api("payments", "/transfers", { token: c.accessToken })).body.items
+      .some((x) => x.id === results[0].body.id),
+    "the internal transfer is visible in the recipient history",
+  );
   const conflict = await api("payments", "/transfers", {
     token: a.accessToken,
     method: "POST",

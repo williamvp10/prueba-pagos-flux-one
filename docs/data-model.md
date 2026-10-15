@@ -34,7 +34,7 @@ erDiagram
 
 ## Tablas e índices críticos
 
-- accounts: UUID, `code` único (ACC-001 etc.), owner UUID, role PRIMARY/SECONDARY, balance/reserved bigint, timestamps. Índice único owner/role; ACC-001 es PRIMARY de A y ACC-003 SECONDARY.
+- accounts: UUID, `code` único, owner UUID, role PRIMARY/SECONDARY, balance/reserved bigint, timestamps. Índice único owner/role; ACC-001, ACC-002 y ACC-003 son PRIMARY de usuarios demo distintos.
 - external_beneficiaries: códigos `EXT-001`, `EXT-002`, nombre, estado activo. Catálogo igual al mock; sin CRUD público v1.
 - transfers: UUID, actor, source FK local, destination kind/code, monto, moneda COP, estado, secuencia, referencia bancaria única, datos de lease y próximo intento, timestamps. El destino interno se valida por código dentro del servicio; no hay API de borrado de cuentas en v1. La columna de destino también representa externos y no tiene FK.
 - reversals: UUID, transferencia, actor, monto completo, estado, referencia bancaria única, lease/reintentos. Índice único parcial por transferencia para estados PENDING/PROCESSING/UNKNOWN/COMPLETED; FAILED permite un nuevo intento con nueva key.
@@ -64,8 +64,9 @@ Reserva y datos para enviar se guardan antes de llamar al banco. Para 503 usar b
 
 ## Seeds
 
-- Demo A: ACC-001 = 1000000.00 COP y ACC-003 = 0.00 COP.
+- Demo A: ACC-001 = 1000000.00 COP.
 - Demo B: ACC-002 = 500000.00 COP.
+- Demo C: ACC-003 = 0.00 COP; es una identidad independiente para demostrar transferencias entre usuarios.
 - Registrar movimiento de apertura por cuenta con referencia única de seed, sin evento de transferencia ficticio.
 - Seed idempotente por códigos/emails; jamás sobrescribir saldos o passwords en un arranque posterior.
 - Nueva identidad: payments crea una cuenta en cero mediante `POST /accounts/bootstrap` autenticado tras login. El BFF lo invoca al iniciar sesión; unicidad owner/rol de cuenta garantiza idempotencia sin key financiera. `GET /accounts` es solo lectura. Si payments falla, mostrar reintento de bootstrap; no llamadas auth → payments durante registro.

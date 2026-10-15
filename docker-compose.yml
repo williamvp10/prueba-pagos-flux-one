@@ -279,6 +279,9 @@ services:
       DEMO_B_ID: "${DEMO_B_ID}"
       DEMO_B_EMAIL: "${DEMO_B_EMAIL}"
       DEMO_B_PASSWORD: "${DEMO_B_PASSWORD}"
+      DEMO_C_ID: "${DEMO_C_ID}"
+      DEMO_C_EMAIL: "${DEMO_C_EMAIL}"
+      DEMO_C_PASSWORD: "${DEMO_C_PASSWORD}"
     networks:
     - private
     depends_on:
@@ -322,8 +325,8 @@ services:
       AUTH_API_URL: http://auth:3001/api/v1
       PAYMENTS_API_URL: http://payments:3002/api/v1
       AUDIT_API_URL: http://audit:3003/api/v1
-    ports:
-    - "${WEB_PORT:-3000}:3000"
+    expose:
+    - '3000'
     networks:
     - private
     restart: unless-stopped

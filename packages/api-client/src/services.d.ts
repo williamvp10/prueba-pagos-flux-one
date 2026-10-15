@@ -115,7 +115,7 @@ export interface paths {
         put?: never;
         /**
          * Provisionar cuenta del usuario autenticado
-         * @description Sin body ni Idempotency-Key; unicidad por propietario/tipo garantiza una cuenta principal. Demo A conserva sus dos cuentas seed. No crea saldo inicial.
+         * @description Sin body ni Idempotency-Key; unicidad por propietario/tipo garantiza una cuenta principal. Cada usuario demo conserva su cuenta seed. No crea saldo inicial.
          */
         post: operations["bootstrapAccount"];
         delete?: never;

@@ -40,7 +40,7 @@ node tools/setup-env.mjs
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d --wait
 ```
 
-El primer comando genera `.env` con credenciales y claves propias. No lo versiona ni sobrescribe si ya existe. Las credenciales demo quedan solo allí. Compose inicializa roles, aplica migraciones y seeds sin resetear saldos; las APIs y dependencias se publican en loopback únicamente con el override de desarrollo. El portal queda disponible en http://localhost:3000.
+El primer comando genera `.env` con credenciales y claves propias. Si ya existe, conserva todo y solo añade las variables faltantes de Demo C. No lo versiona. Compose inicializa roles, aplica migraciones y seeds sin resetear saldos; las APIs y dependencias se publican en loopback únicamente con el override de desarrollo. El portal queda disponible en http://localhost:3000.
 
 | Servicio | Swagger local | Salud |
 |---|---|---|
@@ -67,7 +67,7 @@ La suite usa PostgreSQL/RabbitMQ de Compose, crea y destruye una DB y vhost de t
 
 - El evaluador aclaró que debemos construir el riel y podemos elegir el response body. Se conservan los tres endpoints originales.
 - `auth_schema` complementa los dos esquemas explícitos del enunciado y mantiene aislamiento.
-- Dos usuarios demo: A posee ACC-001/ACC-003; B posee ACC-002. Registro público crea cuenta con saldo cero.
+- Tres usuarios demo: A posee ACC-001, B posee ACC-002 y C posee ACC-003; cada identidad tiene una sola cuenta demo. Registro público crea una cuenta con saldo cero.
 - No payment links, correo de recuperación, alta libre de beneficiarios ni panel de administración en v1.
 - Objetivo de entrega comunicado: 15 de octubre de 2026, 11:30, America/Bogota; spec inicial antes de las 09:00. El historial real de Git determina los tiempos, sin backdating.
 - Publicación pública, invitaciones y correo de entrega permanecen pendientes; no se hizo push durante esta integración.

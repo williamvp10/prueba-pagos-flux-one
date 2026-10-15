@@ -15,3 +15,6 @@ services:
   audit:
     ports:
     - 127.0.0.1:${AUDIT_DEV_PORT:-3103}:3003
+  web:
+    ports:
+    - 127.0.0.1:${WEB_PORT:-3000}:3000

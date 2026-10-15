@@ -8,7 +8,7 @@
 
 ## Decisiones humanas registradas
 
-NestJS/TypeORM; Next.js/shadcn; API First; Docker Compose/Dokploy y un .env raíz. Usuario aceptó RabbitMQ, registro/sesión, auth_schema, dos usuarios demo y reverso interno rechazado si faltan fondos. Eligió estilo tecnológico azul y prioridad Compose/core antes de VPS.
+NestJS/TypeORM; Next.js/shadcn; API First; Docker Compose/Dokploy y un .env raíz. Usuario aceptó RabbitMQ, registro/sesión, auth_schema, tres usuarios demo (una cuenta cada uno) y reverso interno rechazado si faltan fondos. Eligió estilo tecnológico azul y prioridad Compose/core antes de VPS.
 
 ## Errores y correcciones reales del agente
 

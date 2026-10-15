@@ -81,11 +81,11 @@ Estado: aprobada para implementación; evidencia pendiente. Fuente: PDF de la pr
 
 ### Dinero y transferencias internas
 
-#### PAY-01 — Interna exitosa
+#### PAY-01 — Interna exitosa entre usuarios
 
-- **Given:** Demo A con ACC-001=1000000.00 y ACC-003=0.00.
-- **When:** transfiere 1250.25 entre esas cuentas.
-- **Then:** 201 COMPLETED, saldos 998749.75 y 1250.25, dos movimientos, eventos created/completed y una operación.
+- **Given:** Demo A con ACC-001=1000000.00 y Demo C con ACC-003=0.00.
+- **When:** A transfiere 1250.25 a la cuenta de C.
+- **Then:** 201 COMPLETED, saldos 998749.75 y 1250.25, dos movimientos y eventos created/completed; la transferencia aparece en los historiales de A y C.
 
 #### PAY-02 — Importe inválido
 

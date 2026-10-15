@@ -40,7 +40,7 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 | AUTH-07 | Logout y expiración | integration | `tests/backend.test.cjs`| PARCIAL; logout probado; expiración temporal pendiente |
 | AUTH-08 | Protección de entrada | integration | `auth-08.integration.spec.ts` | PENDIENTE; sin implementación |
 | AUTH-09 | Bootstrap recuperable | acceptance | `auth-09.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| PAY-01 | Interna exitosa | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| PAY-01 | Interna exitosa entre usuarios demo | integration | `tests/backend.test.cjs`| VERIFICADO; `pnpm test:all` confirma A paga a C, cuentas separadas y transferencia visible al destinatario |
 | PAY-02 | Importe inválido | unit | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | PAY-03 | Sin fondos | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | PAY-04 | Origen y destino | integration | `tests/backend.test.cjs`| PARCIAL; misma cuenta probada; ampliar inexistentes |

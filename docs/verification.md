@@ -29,7 +29,7 @@ Para Mermaid, usar @mermaid-js/mermaid-cli@12.0.0 con Chrome/Chromium disponible
 
 ## Límites de evidencia
 
-En esta verificación documental inicial todavía no existían apps, tests, CI ni Compose. La fase backend posterior se detalla abajo. Hoy `origin` está configurado y `main` conserva commits locales pendientes de push; publicación, invitaciones, correo y despliegue VPS siguen pendientes.
+En esta verificación documental inicial todavía no existían apps, tests, CI ni Compose. Las fases posteriores se detallan abajo. Hoy `origin` está configurado y `main` conserva commits locales pendientes de push; publicación, invitaciones, correo y despliegue VPS siguen pendientes.
 
 El commit inicial 890d03d se creó a las 09:02:38 -05:00, después del hito de 09:00. Se conserva historial auténtico. Los contratos se corrigieron después mediante otro commit, sin amend ni cambio de fechas.
 
@@ -49,7 +49,7 @@ El commit inicial 890d03d se creó a las 09:02:38 -05:00, después del hito de 0
 - PostgreSQL/RabbitMQ reales en Docker; DB y vhost de test exclusivos se crean y eliminan. Simulador HTTP bancario exclusivamente de test; no sustituye el servicio delegado.
 - `docker compose config --quiet`: configuración válida. `docker compose build auth`: imagen backend construida con los tres servicios. Arranque dirigido a auth/payments/audit ejecuta init, migraciones y seed. Swagger y salud dev 3101/3102/3103 responden 200.
 - CI completo configurado en .github/workflows/backend.yml para `pnpm test:all`; no se ha ejecutado en GitHub.
-- Pruebas pendientes: ventanas reales de crash entre confirm/update y persist/ack, escenarios específicos de reversos externos, UI y mock final de auxiliares, Compose completo y Dokploy. Matriz diferencia evidencia parcial.
+- Pruebas pendientes: ventanas reales de crash entre confirm/update y persist/ack, escenarios específicos de reversos externos, UI y despliegue Dokploy. El Compose completo se validó en la fase siguiente.
 
 Correcciones verificadas: normalización del resultado UPDATE RETURNING de TypeORM, enum nullable de reversalStatus, cursor sin pérdida de microsegundos y credenciales propias de audit en Compose. Puerto ajeno 3001 conservado intacto; backend dev usa 3101–3103.
 
@@ -60,5 +60,13 @@ Correcciones verificadas: normalización del resultado UPDATE RETURNING de TypeO
 - `docker compose ... config --quiet` aprobó y las imágenes `web` y `rail-mock` construyeron. El proyecto aislado `fluxone-int` arrancó todos los servicios y healthchecks. Se parametrizaron puertos del override de desarrollo para evitar colisiones con los servicios existentes.
 - Smoke integrado por HTTP contra el BFF: login `200` devuelve solo usuario/expiración y cookies HttpOnly; cuentas `200`; transferencia externa `202 → COMPLETED` a través del riel; reverso externo `202 → REVERSED`; auditoría `200` con cuatro eventos; logout `204`. Se usó un PostgreSQL, RabbitMQ y SQLite aislados con escenario aceptado, sin tocar saldos demo del proyecto principal.
 - El healthcheck web detectó y permitió corregir la ruta del servidor standalone bajo `apps/web/server.js`. La primera versión del Dockerfile del mock no correspondía al contexto raíz; Compose también expuso colisión de puertos durante el smoke, resuelta con overrides configurables.
+
+## Compose de producción y cuentas demo
+
+- `docker compose -f docker-compose.yml config --quiet` y el override dev aprobaron. El Compose base define los 12 servicios, red privada y volúmenes persistentes; no publica puertos al host y expone web internamente en 3000. El override dev publica solo en loopback, incluido el portal en `WEB_PORT`.
+- Dokploy está documentado para usar Compose (no Stack), dominio nativo en el servicio `web` con destino 3000, HTTPS y variables del editor Environment. Su integración agrega labels y red de Traefik al servicio elegido; las variables Compose se mapean explícitamente a cada contenedor.
+- El seed añade Demo C y asigna A/B/C a ACC-001/002/003. Al actualizar un volumen existente, mueve ACC-003 solo si aún pertenece a A como SECONDARY; conserva saldo y ledger. El `.env` local ya tiene credenciales C; `.env.example` y `tools/setup-env.mjs` contemplan las tres identidades sin versionar secretos.
+- Stack local reconstruido con Compose base y dev override; servicios healthy. Los logins BFF de A/B/C dieron 200 y cada usuario recibió una sola cuenta. Los saldos ya existentes se conservaron.
+- `pnpm test:all` pasó tras el cambio: 3 pruebas unitarias de backend, 13 de integración/configuración, 8 del mock, 3 del frontend, typecheck y build de Next.js.
 
 Límites: no se hizo una prueba automatizada en navegador ni revisión visual completa de tema claro/oscuro; UI-01..05 siguen pendientes de evidencia browser. El mock valida sintaxis/runtime de type stripping, no tipos TypeScript semánticos. CI remoto, VPS/Dokploy y push siguen pendientes.

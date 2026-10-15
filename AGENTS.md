@@ -78,7 +78,7 @@ Las carpetas de aplicaciones son objetivo, no evidencia de implementación. No g
 
 - Registro/login/refresh rotado/logout. Contraseñas con hash, JWT RS256 access 15 min, refresh 7 días almacenado con hash. Validar issuer/audience/expiración y propiedad de recursos.
 - Browser usa BFF/cookies HttpOnly; no tokens en localStorage/sessionStorage ni respuestas browser. Origin check para mutaciones. SessionStorage solo key/payload de intención financiera.
-- Bootstrap de cuenta es POST autenticado idempotente por owner, separado del registro. Nuevos usuarios saldo cero; demo A ACC-001/003 y demo B ACC-002 según seed.
+- Bootstrap de cuenta es POST autenticado idempotente por owner, separado del registro. Nuevos usuarios saldo cero; demos A/B/C tienen respectivamente ACC-001/002/003, una cuenta por usuario.
 - UI en español, estilo tecnológico azul, claro/oscuro/sistema, tokens semánticos y componentes shadcn. Estados loading/empty/error/unknown y accesibilidad por teclado.
 - Polling 2 s para estados no terminales; impedir doble clic y conservar key en reintentos. Frontend nunca es autoridad financiera.
 - Un .env raíz ignorado, .env.example sin secretos reales. Compose inyecta solo variables necesarias; no compartir todas las credenciales con todos los servicios ni usar NEXT_PUBLIC_ para secretos.

@@ -1,6 +1,6 @@
 # Despliegue: Compose y Dokploy
 
-Estado: los ocho servicios, sus dependencias, redes y volúmenes están definidos en Compose. Las imágenes de web y rail-mock ya construyen; el arranque completo y el smoke entre procesos se están verificando en un proyecto Compose aislado. No se ha desplegado en la VPS.
+Estado: los 12 servicios, sus dependencias, redes y volúmenes están definidos en Compose. El stack local completo reconstruyó y quedó healthy; el smoke entre procesos también se aprobó en un proyecto Compose aislado. No se ha desplegado en la VPS.
 
 ## Servicios del archivo docker-compose.yml
 
@@ -21,7 +21,7 @@ init-db espera postgres healthy; migrations esperan init completado; seed espera
 
 Health HTTP sin autenticación en red privada: live devuelve 200 si el proceso puede responder; ready devuelve 200 si puede servir su capacidad base y 503 si no. Body `{status: "ok" | "degraded", service: string}`. No exponer DSNs ni secretos en salud. Para payments, DB caída impide readiness; broker caído se observa como capacidad de auditoría degradada en logs/métricas sin bloquear el core.
 
-## Redes y exposición
+## Redes y exposición en Dokploy
 
 ```mermaid
 flowchart TB
@@ -40,47 +40,47 @@ flowchart TB
     end
 ```
 
-Solo web publica puerto local `${WEB_PORT:-3000}:3000`. En Dokploy, web se conecta además a la red externa `dokploy-network`; el override de despliegue agrega esa red/labels y elimina el binding público local si se usa Traefik. Base Compose arranca local sin necesitar la red de Dokploy. No publicar DB, AMQP, management ni mock en internet.
+El Compose base solo declara `expose: 3000` para web; no publica puertos al host. En despliegue local, `docker-compose.dev.yml` publica web y las APIs en loopback. Para producción, crea la aplicación como **Docker Compose** (no Docker Stack: las imágenes de este repo se construyen con `build`) y configura el dominio en la pestaña Domains de Dokploy con puerto destino 3000 y HTTPS. Dokploy añade las labels de Traefik y conecta el servicio web a su red de entrada. No hacen falta labels ni una red externa de Dokploy escritos a mano. No publicar DB, AMQP, management, APIs ni mock en internet.
 
-El override no agrega .env por aplicación: ambos archivos Compose usan la misma fuente raíz. `docker-compose.dokploy.yml` es una extensión de infraestructura planeada, no una segunda pila independiente.
+El mismo `docker-compose.yml` contiene todos los servicios para local y producción. No usar `docker-compose.dev.yml` en Dokploy: solo ese override publica puertos locales. Compose conserva la red privada de servicios y volúmenes con nombre para Postgres, RabbitMQ y el rail mock.
 
 ## Un único .env
 
-Configurar valores en Dokploy para materializar `.env` junto al Compose; interpolar mediante `environment` explícito por servicio, no `env_file` completo en todos. No versionar `.env`; `.env.example` sí, con placeholders no funcionales para secretos de producción.
+Pega las variables del `.env.example` en el editor Environment del proyecto Compose en Dokploy; Dokploy las guarda como `.env` junto al Compose. Compose no inyecta automáticamente todas esas variables a todos los contenedores: este archivo las mapea explícitamente por servicio para limitar secretos. No versionar `.env`; `.env.example` contiene placeholders no funcionales.
 
 Variables objetivo:
 
 | Grupo | Variables |
 |---|---|
-| General | NODE_ENV, APP_ORIGIN, WEB_PORT, LOG_LEVEL |
+| General | NODE_ENV, APP_ORIGIN, LOG_LEVEL; `WEB_PORT` solo en desarrollo |
 | DB bootstrap | POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD |
 | Roles runtime | AUTH_DB_USER, AUTH_DB_PASSWORD, PAYMENTS_DB_USER, PAYMENTS_DB_PASSWORD, AUDIT_DB_USER, AUDIT_DB_PASSWORD |
 | Roles migración | AUTH_MIGRATION_USER, AUTH_MIGRATION_PASSWORD, PAYMENTS_MIGRATION_USER, PAYMENTS_MIGRATION_PASSWORD, AUDIT_MIGRATION_USER, AUDIT_MIGRATION_PASSWORD |
 | JWT | JWT_PRIVATE_KEY_B64, JWT_PUBLIC_KEY_B64, JWT_ISSUER, JWT_AUDIENCE |
 | Broker | RABBITMQ_USER, RABBITMQ_PASSWORD |
-| Demo | DEMO_A_ID, DEMO_B_ID, DEMO_A_EMAIL, DEMO_B_EMAIL, DEMO_A_PASSWORD, DEMO_B_PASSWORD |
+| Demo | DEMO_A_ID, DEMO_B_ID, DEMO_C_ID, DEMO_A_EMAIL, DEMO_B_EMAIL, DEMO_C_EMAIL, DEMO_A_PASSWORD, DEMO_B_PASSWORD, DEMO_C_PASSWORD |
 | Mock | RAIL_MODE, RAIL_SCENARIOS |
 
-Hosts y puertos internos derivan de nombres de servicio en Compose; no duplicar configuración de red en browser. Solo auth recibe private key; payments/audit reciben public key. Web solo URLs privadas y APP_ORIGIN; no recibe credenciales de DB/broker ni private key. Ningún secreto con prefijo NEXT_PUBLIC_. Generación inicial de keys/UUIDs/secrets resuelta con tools/setup-env.mjs, que crea solo `.env` cuando falta.
+Hosts y puertos internos derivan de nombres de servicio en Compose; no duplicar configuración de red en browser. Para Dokploy define `APP_ORIGIN=https://<dominio-publico>` sin slash final, `NODE_ENV=production` y secretos/UUIDs fuertes. Solo auth recibe private key; payments/audit reciben public key. Web solo URLs privadas y APP_ORIGIN; no recibe credenciales de DB/broker ni private key. Ningún secreto con prefijo NEXT_PUBLIC_. Generación inicial de keys/UUIDs/secrets demo A/B/C resuelta con `tools/setup-env.mjs`, que crea solo `.env` cuando falta. Los IDs y contraseñas demo deben permanecer estables entre despliegues para que el seed idempotente no cree identidades nuevas; cambia contraseñas reiniciando las credenciales por un procedimiento deliberado, no regenerando variables al desplegar.
 
 ## Seguridad y operación mínima
 
 Builds multi-stage, runtime no-root cuando imagen lo permita, dependencias fijadas por lockfile y tags exactos elegidos en bootstrap, graceful shutdown y restart unless-stopped para servicios permanentes. No restart para migrations fallidas: impedir arrancar apps sobre schema incompleto.
 
-Credenciales admin fuera de apps. Respaldar DB y volumen SQLite antes de cambios destructivos. No ejecutar down -v en VPS. Logs stdout JSON, IDs de correlación y sin tokens. Rotación de secretos o tags requiere redeploy; no regenerarlos en cada arranque.
+Credenciales admin fuera de apps. Los volúmenes conservan Postgres, RabbitMQ y SQLite entre despliegues: cambiar `POSTGRES_PASSWORD` o `RABBITMQ_PASSWORD` en Dokploy por sí solo no rota credenciales ya inicializadas ni existentes. Configúralas antes del primer despliegue y usa un procedimiento de rotación acorde al servicio si se cambian. Respaldar DB y volumen SQLite antes de cambios destructivos. No ejecutar down -v en VPS. Logs stdout JSON, IDs de correlación y sin tokens. No regenerar secretos ni IDs demo en cada arranque.
 
 ## Guía de validación
 
-1. Clon limpio + setup de .env + docker compose up --build -d, en menos de cinco comandos de usuario.
+1. Local: `node tools/setup-env.mjs` y `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d --wait`. Dokploy usa solo `docker-compose.yml`.
 2. Verificar health, login demo, saldos iniciales y una interna/externa/reverso.
 3. Reiniciar sin borrar volúmenes: conservar usuarios, saldos, resultados bancarios y eventos.
 4. Detener broker: pagar interna; recuperar broker y comprobar auditoría eventual.
-5. Dokploy: dominio y HTTPS definidos durante despliegue real, red de entrada existente, variables raíz, override y smoke desde URL pública.
+5. Dokploy: variables raíz definidas, dominio/HTTPS configurados en Domains y smoke desde URL pública.
 
 No conocemos dominio ni recursos de VPS. Esos datos no bloquean documentación ni Compose local, pero deben comprobarse antes de desplegar. No afirmar despliegue realizado sin URL y smoke exitoso.
 
 ## Evidencia y configuración dev actual
 
-Imágenes backend, web standalone y rail-mock construidas. docker-compose.dev.yml publica APIs en 3101/3102/3103 por defecto y PG/AMQP en 15432/15672, siempre loopback; puertos internos siguen 3001/3002/3003, 5432 y 5672. Los puertos PG/AMQP se pueden cambiar con `POSTGRES_DEV_PORT` y `RABBITMQ_DEV_PORT` al correr más de una pila. El puerto 3001 estaba ocupado por otro proceso y se dejó intacto. tools/setup-env.mjs genera .env solo si falta.
+Imágenes backend, web standalone y rail-mock construidas. `docker-compose.dev.yml` publica web en `WEB_PORT` (3000 por defecto), APIs en 3101/3102/3103 y PG/AMQP en 15432/15672, siempre loopback; puertos internos siguen 3000/3001/3002/3003, 5432 y 5672. Los puertos PG/AMQP se pueden cambiar con `POSTGRES_DEV_PORT` y `RABBITMQ_DEV_PORT` al correr más de una pila. `tools/setup-env.mjs` crea `.env` y, en un archivo existente, añade solo las variables demo C faltantes. El seed demo asigna ACC-001/002/003 a A/B/C respectivamente; mueve solo ACC-003 desde A a C preservando saldo y ledger existentes.
 
-El override de Dokploy todavía debe prepararse cuando se conozca la entrada web y se integren auxiliares; no existe despliegue VPS verificado. No se atribuye arranque completo a una prueba parcial de backend.
+El dominio real, DNS y HTTPS deben configurarse en Dokploy; todavía no se ha desplegado ni verificado en la VPS. No se atribuye despliegue completado sin URL y smoke exitoso.
