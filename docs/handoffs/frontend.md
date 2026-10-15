@@ -1,14 +1,14 @@
 # Handoff — frontend y BFF
 
-Estado: READY_FOR_INSTALL
-Rama/worktree: `codex/frontend-agent` en `/tmp/fluxone-frontend-worktree`.
+Estado: INTEGRATED / VERIFIED en `main` (`8d0931b` + correcciones de integración).
+Rama/worktree de origen: `codex/frontend-agent` en `/tmp/fluxone-frontend-worktree`.
 
 ## Rutas de esta entrega
 
 - `apps/web/**`: app Next.js App Router, UI, BFF, configuración local y pruebas unitarias.
 - `docs/handoffs/frontend.md`: este handoff.
 
-No se modificaron contratos, infraestructura compartida, manifests raíz ni lockfiles.
+El coordinador resolvió dependencias desde el workspace raíz y agregó el Dockerfile standalone y healthcheck al Compose; los contratos no necesitaron cambios.
 
 ## Implementación y criterios
 
@@ -22,7 +22,7 @@ No se modificaron contratos, infraestructura compartida, manifests raíz ni lock
 - UI-05: APIs del BFF refrescan una sesión una vez tras 401; con Web Locks se coordina entre pestañas. Si no hay soporte para Web Locks se cierra la sesión y se vuelve a login.
 - Incluye historial filtrado, detalle de transferencia y reverso con confirmación. Un reverso FAILED permite intentar otra vez con una clave nueva.
 
-## Dependencias para instalación central
+## Dependencias instaladas por el coordinador
 
 Dependencias de `apps/web/package.json`:
 
@@ -52,7 +52,7 @@ Dependencias de desarrollo:
 - `tailwindcss`: `^4.1.13`
 - `typescript`: `^5.9.2`
 
-Runtime: Node `>=24`. No se ejecutó install ni se cambió lockfile. El coordinador puede definir el Dockerfile al integrar Compose.
+Runtime: Node `>=24`. Las dependencias quedaron fijadas por `pnpm-lock.yaml` y la imagen usa Node 24.11.0.
 
 ## Configuración de servidor
 
@@ -69,9 +69,11 @@ En desarrollo fuera de Compose se reemplazan los hosts de servicios por `localho
 - `pnpm --dir apps/web test` — pasó: 3 pruebas de canonicalización, rango/precisión y formato COP usando enteros exactos.
 - `find apps/web -name '*.ts' -not -name '*.d.ts' -print0 | xargs -0 -n1 node --experimental-strip-types --check` — pasó; sintaxis de archivos TypeScript no JSX.
 - `node --check apps/web/next.config.ts` — pasó.
-- `pnpm --dir apps/web typecheck` — no disponible: `tsc: command not found`; no hay node_modules en este worktree.
-- Build y pruebas de browser no ejecutados porque no se instalaron dependencias. `@fluxone/api-client` tampoco está presente en el `HEAD` base de este worktree, por lo que el typecheck seguirá bloqueado hasta que el coordinador integre el paquete compartido y haga la instalación central.
+- `pnpm --filter @fluxone/web typecheck` — aprobado desde el workspace integrado.
+- `pnpm --filter @fluxone/web build` — aprobado; Next.js generó la salida standalone.
+- `pnpm --filter @fluxone/web test` — 3/3 aprobadas.
+- Compose aislado confirmó login sin tokens en el body, cookies HttpOnly, lectura de cuentas, transferencia externa, reverso y auditoría mediante el BFF.
 
-## Pendiente para revisión
+## Límite de verificación
 
-Integrar junto al paquete `@fluxone/api-client`, instalar dependencias desde el coordinador y ejecutar typecheck/build. Luego comprobar visualmente claro/oscuro y flujos auth/transferencia/reverso con backend disponible.
+No se ejecutó un recorrido automatizado de navegador ni revisión visual de todos los estados claro/oscuro. Los tests actuales cubren dinero y el smoke integrado cubre BFF/servicios; los criterios UI-01..05 permanecen pendientes de evidencia browser.

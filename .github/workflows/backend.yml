@@ -1,7 +1,7 @@
-name: Backend core
+name: Flux One full stack
 on: [push, pull_request]
 jobs:
-  backend:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -17,7 +17,7 @@ jobs:
       - run: node tools/setup-env.mjs
       - run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres rabbitmq
       - run: pnpm contracts && git diff --exit-code -- packages/api-client/src
-      - run: pnpm test
+      - run: pnpm test:all
       - if: failure()
         run: docker compose logs --tail 80 postgres rabbitmq
       - if: always()

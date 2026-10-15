@@ -1,4 +1,4 @@
-# Verificación de la base documental
+# Verificación documental e implementación
 
 Fecha: 2026-10-15, America/Bogota. Este documento conserva verificaciones por fase; el bloque final describe el backend actual.
 
@@ -7,7 +7,7 @@ Fecha: 2026-10-15, America/Bogota. Este documento conserva verificaciones por fa
 | Redocly CLI 2.64.0, OpenAPI de servicios/browser/mock | Válidos, cero errores; 4 warnings de estilo: licencia sin URL y server localhost de desarrollo |
 | Mermaid CLI 12.0.0, render con Chrome | 6 diagramas convertidos a SVG sin errores de sintaxis |
 | AJV 8 con ajv-formats, JSON Schema 2020-12 | Schema compila, ejemplo válido, monto numérico rechazado |
-| Correspondencia spec → matriz | 61 IDs únicos y una fila por criterio |
+| Correspondencia spec → matriz | 62 IDs únicos y una fila por criterio |
 | Enlaces Markdown locales | Targets existentes |
 | Payloads financieros servicio/browser | Schemas iguales |
 | Rutas del mock | Exactamente los 3 endpoints de la tabla |
@@ -48,7 +48,17 @@ El commit inicial 890d03d se creó a las 09:02:38 -05:00, después del hito de 0
 - `node --test --test-name-pattern=IDEM-05 tests/backend.test.cjs`: rollback tras escribir débito/crédito y fallar outbox de completed, aprobado.
 - PostgreSQL/RabbitMQ reales en Docker; DB y vhost de test exclusivos se crean y eliminan. Simulador HTTP bancario exclusivamente de test; no sustituye el servicio delegado.
 - `docker compose config --quiet`: configuración válida. `docker compose build auth`: imagen backend construida con los tres servicios. Arranque dirigido a auth/payments/audit ejecuta init, migraciones y seed. Swagger y salud dev 3101/3102/3103 responden 200.
-- CI backend configurado en .github/workflows/backend.yml; no se ha ejecutado en GitHub.
+- CI completo configurado en .github/workflows/backend.yml para `pnpm test:all`; no se ha ejecutado en GitHub.
 - Pruebas pendientes: ventanas reales de crash entre confirm/update y persist/ack, escenarios específicos de reversos externos, UI y mock final de auxiliares, Compose completo y Dokploy. Matriz diferencia evidencia parcial.
 
 Correcciones verificadas: normalización del resultado UPDATE RETURNING de TypeORM, enum nullable de reversalStatus, cursor sin pérdida de microsegundos y credenciales propias de audit en Compose. Puerto ajeno 3001 conservado intacto; backend dev usa 3101–3103.
+
+## Integración de rail y frontend
+
+- Las ramas auxiliares quedaron limpias después de los commits de entrega. `main` contiene `e6462b9` (rail) y `8d0931b` (frontend); el coordinador agregó el cableado de Compose y el build standalone del portal en commits posteriores.
+- `pnpm test:all` pasó: backend 3 unitarias + 13 integración/configuración; rail 8/8 más análisis de fuentes con Node 24.11.0; frontend typecheck, 3/3 unitarias y build Next.js 16.4.1.
+- `docker compose ... config --quiet` aprobó y las imágenes `web` y `rail-mock` construyeron. El proyecto aislado `fluxone-int` arrancó todos los servicios y healthchecks. Se parametrizaron puertos del override de desarrollo para evitar colisiones con los servicios existentes.
+- Smoke integrado por HTTP contra el BFF: login `200` devuelve solo usuario/expiración y cookies HttpOnly; cuentas `200`; transferencia externa `202 → COMPLETED` a través del riel; reverso externo `202 → REVERSED`; auditoría `200` con cuatro eventos; logout `204`. Se usó un PostgreSQL, RabbitMQ y SQLite aislados con escenario aceptado, sin tocar saldos demo del proyecto principal.
+- El healthcheck web detectó y permitió corregir la ruta del servidor standalone bajo `apps/web/server.js`. La primera versión del Dockerfile del mock no correspondía al contexto raíz; Compose también expuso colisión de puertos durante el smoke, resuelta con overrides configurables.
+
+Límites: no se hizo una prueba automatizada en navegador ni revisión visual completa de tema claro/oscuro; UI-01..05 siguen pendientes de evidencia browser. El mock valida sintaxis/runtime de type stripping, no tipos TypeScript semánticos. CI remoto, VPS/Dokploy y push siguen pendientes.

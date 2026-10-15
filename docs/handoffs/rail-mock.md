@@ -1,6 +1,6 @@
 # Handoff — riel bancario
 
-Estado: READY_FOR_REVIEW.
+Estado: INTEGRATED / VERIFIED en `main` (`e6462b9` + integración de Compose).
 
 Propietario: auxiliar de rail-mock. Trabajo realizado en la rama `agent/rail-mock` dentro del worktree `/tmp/fluxone-rail-mock`; no se hizo commit.
 
@@ -44,4 +44,4 @@ Desde `apps/rail-mock/`:
 - Variables usadas como defaults por el servicio: `PORT=3004`, `RAIL_MODE=random`, `RAIL_DB_PATH=/data/rail.sqlite`; `RAIL_SCENARIOS` es opcional.
 - Limitación de la persistencia: sobrevive reinicios del contenedor mientras el volumen exista; no protege ante pérdida del disco.
 
-Pendiente para coordinación: revisar e integrar únicamente estas rutas asignadas, ejecutar las validaciones centrales y conectar el volumen/healthcheck en infraestructura cuando corresponda.
+Integración central: `docker-compose.yml` construye desde la raíz con el Dockerfile corregido, guarda `/data` en `rail_data`, espera readiness antes de iniciar payments y configura el modo mediante el `.env` compartido. Compose aislado confirmó transferencia aceptada y reverso aceptado a través del backend y del BFF. No existe un typecheck semántico para el rail porque usa type stripping nativo de Node 24.

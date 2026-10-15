@@ -9,11 +9,11 @@ Mismo repositorio y checkout, con propiedad exclusiva por rutas. Main sigue sien
 | Tooling/contexto y coordinación | Chat coordinador | AGENTS.md, tools/**, .codex/**, docs centrales | Graphify y reglas implementados; evidencia en docs/verification.md |
 | Monorepo e infraestructura | Chat coordinador | manifests raíz, lockfile, infra/**, Compose, .env.example | Implementado; backend Compose verificado |
 | Pagos y contratos compartidos | Chat coordinador | apps/payments/**, packages/**, contratos y specs | Core implementado con pruebas; integración mock pendiente |
-| Mock bancario | Agente auxiliar externo | apps/rail-mock/** y docs/handoffs/rail-mock.md | RESERVADO; prompt listo, no iniciado desde este chat |
+| Mock bancario | Agente auxiliar externo; coordinador integrador | apps/rail-mock/** y docs/handoffs/rail-mock.md | Integrado en main; persistencia SQLite y 8 pruebas locales |
 | Auth y audit | Chat coordinador | apps/auth/**, apps/audit/** | Implementados, Swagger y health verificados |
-| Frontend y BFF | Segundo auxiliar externo | apps/web/** y docs/handoffs/frontend.md | RESERVADO; prompt frontend-agent.md listo |
+| Frontend y BFF | Segundo agente auxiliar; coordinador integrador | apps/web/** y docs/handoffs/frontend.md | Integrado en main; typecheck, pruebas y build de producción aprobados |
 
-El estado de esta tabla es una asignación, no evidencia de procesos en ejecución. Solo cambia el coordinador. La sesión iniciada por el usuario con el prompt será responsable del mock; no se ha despachado un agente duplicado automáticamente.
+Los dos auxiliares entregaron ramas cortas desde `d15a9f5`; el coordinador registró commits en cada rama y los integró en `main` como `e6462b9` y `8d0931b`. El cherry-pick del frontend requirió conservar su handoff actualizado. Ambas ramas quedaron limpias tras el commit; el estado final de tests e integración figura en README y verification.
 
 ## Archivos compartidos y exclusión
 

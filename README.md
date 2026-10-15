@@ -2,7 +2,7 @@
 
 Monorepo planeado para un portal de pagos COP con arquitectura hexagonal, SDD, API First y trunk-based development.
 
-**Estado: backend implementado y verificado localmente.** Auth, payments y audit compilan, ejecutan en Docker y exponen Swagger. Frontend y riel oficial del proyecto permanecen asignados a otros agentes; su integración completa está pendiente. No hay despliegue VPS ni remote configurado.
+**Estado: las tres APIs, el portal/BFF y el riel están integrados en `main`.** Auth, payments y audit usan NestJS/TypeORM y exponen Swagger; el portal Next.js se comunica por el BFF con cookies HttpOnly; el riel conserva respuestas idempotentes en SQLite. Compose define la pila completa. No hay despliegue VPS ni remote configurado.
 
 ## Leer primero
 
@@ -25,23 +25,22 @@ Monorepo planeado para un portal de pagos COP con arquitectura hexagonal, SDD, A
 
 ## Colaboración y contexto
 
-Leer [AGENTS.md](AGENTS.md) y [coordinación](docs/collaboration.md) antes de editar. El [prompt del agente auxiliar](docs/prompts/rail-mock-agent.md) reserva únicamente el mock bancario. [Graphify](docs/graphify.md) permite consultar contexto local con `./tools/graphify query "idempotencia" --budget 1200`; coordinador reconstruye con `./tools/graphify rebuild`.
+Leer [AGENTS.md](AGENTS.md) y [coordinación](docs/collaboration.md) antes de editar. Los prompts de agentes están en [rail-mock](docs/prompts/rail-mock-agent.md) y [frontend](docs/prompts/frontend-agent.md). [Graphify](docs/graphify.md) permite consultar contexto local con `./tools/graphify query "idempotencia" --budget 1200`; coordinador reconstruye con `./tools/graphify rebuild`.
 
 ## Stack decidido
 
 TypeScript, pnpm workspaces, NestJS, TypeORM, PostgreSQL, RabbitMQ, Next.js App Router, shadcn, Tailwind y TanStack Query. Mock bancario Node.js/TypeScript con SQLite persistente. Node 24 LTS como runtime objetivo; fijar versiones compatibles y lockfile durante bootstrap.
 
-## Arranque verificado del backend
+## Arranque local completo
 
-Requiere Docker Compose y Node 24. Desde un clon, tres comandos:
+Requiere Docker Compose v2 y Node 24. Desde un clon:
 
 ```sh
 node tools/setup-env.mjs
-docker compose -f docker-compose.yml -f docker-compose.dev.yml build auth
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --no-build auth payments audit rabbitmq
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d --wait
 ```
 
-El primer comando genera `.env` con credenciales y claves propias. No lo versiona ni sobrescribe si ya existe. Consultar allí credenciales demo localmente. Compose inicializa roles, aplica migraciones y seeds sin resetear saldos. Solo el override de desarrollo publica APIs y dependencias en loopback; el Compose base mantiene servicios privados.
+El primer comando genera `.env` con credenciales y claves propias. No lo versiona ni sobrescribe si ya existe. Las credenciales demo quedan solo allí. Compose inicializa roles, aplica migraciones y seeds sin resetear saldos; las APIs y dependencias se publican en loopback únicamente con el override de desarrollo. El portal queda disponible en http://localhost:3000.
 
 | Servicio | Swagger local | Salud |
 |---|---|---|
@@ -49,9 +48,7 @@ El primer comando genera `.env` con credenciales y claves propias. No lo version
 | Payments | http://localhost:3102/docs | http://localhost:3102/health/ready |
 | Audit | http://localhost:3103/docs | http://localhost:3103/health/ready |
 
-`/docs-json` devuelve el OpenAPI filtrado del servicio. Swagger usa el contrato YAML aprobado y permite bearer auth. Puertos dev configurables mediante AUTH_DEV_PORT/PAYMENTS_DEV_PORT/AUDIT_DEV_PORT. PostgreSQL local 15432 y AMQP local 15672, ambos solo 127.0.0.1.
-
-**Arranque completo pendiente:** `docker compose up --build -d` también incluye web y rail-mock; necesita los Dockerfiles/implementaciones de los auxiliares. No se afirma que ese flujo completo esté validado todavía. En el backend operativo, las externas conservan reserva y estado UNKNOWN si el riel no está disponible; no usar una transferencia externa para probar éxito hasta integrar el servicio.
+`/docs-json` devuelve el OpenAPI filtrado del servicio. Swagger usa el contrato YAML aprobado y permite bearer auth. Puertos dev configurables mediante AUTH_DEV_PORT/PAYMENTS_DEV_PORT/AUDIT_DEV_PORT. PostgreSQL local 15432 y AMQP local 15672, ambos solo 127.0.0.1; para una pila paralela usa `POSTGRES_DEV_PORT` y `RABBITMQ_DEV_PORT`.
 
 ## Desarrollo, contratos y pruebas
 
@@ -59,11 +56,12 @@ El primer comando genera `.env` con credenciales y claves propias. No lo version
 pnpm install --frozen-lockfile
 pnpm contracts
 pnpm test
+pnpm test:all
 ```
 
 La suite usa PostgreSQL/RabbitMQ de Compose, crea y destruye una DB y vhost de test exclusivos y levanta APIs de prueba en 13001–13003. No resetea datos demo. Comprueba dinero exacto, 20 peticiones con la misma key, sobregiro concurrente, reverso único, rollback por fallo de outbox, rotación de sesión, permisos, entrega real AMQP, Swagger y respuestas HTTP contra OpenAPI. Los fallos bancarios se prueban con un proveedor HTTP controlado en tests; no sustituyen integración con el rail-mock del otro agente.
 
-Evidencia actual: 3 pruebas unitarias y 13 de integración/configuración aprobadas. Ver [verificación](docs/verification.md) y [matriz](docs/traceability.md) para distinguir cobertura completa, parcial y pendiente. CI backend está configurado, pero no ejecutado remotamente.
+`pnpm test` cubre backend (3 unitarias + 13 de integración/configuración). `pnpm test:all` añade las 8 pruebas SQLite del rail y el typecheck, 3 unitarias y build de producción del frontend. El smoke de Compose y los flujos por BFF se registran en [verificación](docs/verification.md); la matriz separa la cobertura directa del componente y la integración entre procesos. CI está configurado, pero no ejecutado remotamente.
 
 ## Supuestos y límites
 

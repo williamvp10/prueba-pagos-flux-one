@@ -1,6 +1,6 @@
-# Despliegue objetivo: Compose y Dokploy
+# Despliegue: Compose y Dokploy
 
-Estado: infraestructura de backend construida y arrancada localmente; web/mock pendientes de integrar. Ver README para comandos ejecutados.
+Estado: los ocho servicios, sus dependencias, redes y volúmenes están definidos en Compose. Las imágenes de web y rail-mock ya construyen; el arranque completo y el smoke entre procesos se están verificando en un proyecto Compose aislado. No se ha desplegado en la VPS.
 
 ## Servicios del archivo docker-compose.yml
 
@@ -81,6 +81,6 @@ No conocemos dominio ni recursos de VPS. Esos datos no bloquean documentación n
 
 ## Evidencia y configuración dev actual
 
-Imagen backend multi-stage construida y auth/payments/audit en ejecución con healthchecks y Swagger. docker-compose.dev.yml publica APIs en 3101/3102/3103 por defecto y PG/AMQP en 15432/15672, siempre loopback; puertos internos siguen 3001/3002/3003, 5432 y 5672. El puerto 3001 estaba ocupado por otro proceso y se dejó intacto. tools/setup-env.mjs genera .env solo si falta.
+Imágenes backend, web standalone y rail-mock construidas. docker-compose.dev.yml publica APIs en 3101/3102/3103 por defecto y PG/AMQP en 15432/15672, siempre loopback; puertos internos siguen 3001/3002/3003, 5432 y 5672. Los puertos PG/AMQP se pueden cambiar con `POSTGRES_DEV_PORT` y `RABBITMQ_DEV_PORT` al correr más de una pila. El puerto 3001 estaba ocupado por otro proceso y se dejó intacto. tools/setup-env.mjs genera .env solo si falta.
 
 El override de Dokploy todavía debe prepararse cuando se conozca la entrada web y se integren auxiliares; no existe despliegue VPS verificado. No se atribuye arranque completo a una prueba parcial de backend.

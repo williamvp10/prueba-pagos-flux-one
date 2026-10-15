@@ -2,7 +2,7 @@
 
 ## Estrategia
 
-Paquete principal: coverage-plan; secundario: contract-and-api-checks. Riesgos principales: doble débito, sobregiro, pérdida de reserva/evento y exposición de recursos ajenos. Existe suite backend ejecutable; las filas indican evidencia completa, parcial o pendiente.
+Paquete principal: coverage-plan; secundario: contract-and-api-checks. Riesgos principales: doble débito, sobregiro, pérdida de reserva/evento y exposición de recursos ajenos. Las filas indican evidencia completa, parcial o pendiente; `pnpm test:all` verifica backend, rail y build/typecheck/unitarias del web.
 
 | Capa | Dependencias | Evidencia que debe producir |
 |---|---|---|
@@ -31,7 +31,7 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 
 | Criterio | Caso | Capa prevista | Test planeado | Estado / evidencia |
 |---|---|---|---|---|
-| AUTH-01 | Registro y cuenta propia | integration | `tests/backend.test.cjs`| PARCIAL; registro/bootstrap API; flujo UI pendiente |
+| AUTH-01 | Registro y cuenta propia | integration | `tests/backend.test.cjs` + smoke Compose/BFF | PARCIAL; registro/bootstrap API y BFF de login/cuentas comprobados; browser completo pendiente |
 | AUTH-02 | Credenciales inválidas | integration | `auth-02.integration.spec.ts` | PENDIENTE; sin implementación |
 | AUTH-03 | Identidad duplicada | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | AUTH-04 | Acceso protegido | integration | `tests/backend.test.cjs`| PARCIAL; JWT ausente probado; falta expirado/alterado |
@@ -56,7 +56,7 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 | IDEM-05 | Caída antes de commit | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | IDEM-06 | Caída después de commit | integration | `idem-06.integration.spec.ts` | PENDIENTE; sin implementación |
 | IDEM-07 | Error de negocio consumido | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
-| RAIL-01 | Banco acepta | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
+| RAIL-01 | Banco acepta | acceptance | `tests/backend.test.cjs` + smoke Compose/BFF | VERIFICADO; flujo completo payments → rail-mock → BFF aceptado |
 | RAIL-02 | Banco rechaza | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
 | RAIL-03 | Banco no disponible | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
 | RAIL-04 | Timeout procesado | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
@@ -64,14 +64,14 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 | RAIL-06 | Consulta indisponible | acceptance | `rail-06.acceptance.spec.ts` | PENDIENTE; sin implementación |
 | RAIL-07 | Worker reiniciado | acceptance | `rail-07.acceptance.spec.ts` | PENDIENTE; sin implementación |
 | RAIL-08 | Respuesta inesperada | contract | `rail-08.contract.spec.ts` | PENDIENTE; sin implementación |
-| MOCK-01 | Contrato e idempotencia bancaria | integration | `mock-01.integration.spec.ts` | PENDIENTE; sin implementación |
-| MOCK-02 | Persistencia bancaria | integration | `mock-02.integration.spec.ts` | PENDIENTE; sin implementación |
-| MOCK-03 | Modos de fallo | contract | `mock-03.contract.spec.ts` | PENDIENTE; sin implementación |
+| MOCK-01 | Contrato e idempotencia bancaria | integration | `apps/rail-mock/src/rail.test.ts` | VERIFICADO; `pnpm test:all` (8 pruebas rail) |
+| MOCK-02 | Persistencia bancaria | integration | `apps/rail-mock/src/rail.test.ts` | VERIFICADO; SQLite reabierta conserva transferencia y reverso |
+| MOCK-03 | Modos de fallo | contract | `apps/rail-mock/src/rail.test.ts` | VERIFICADO; aceptada, rechazada, 503 y ambos timeouts |
 | REV-01 | Interno exitoso | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | REV-02 | Sin saldo para devolver | integration | `rev-02.integration.spec.ts` | PENDIENTE; sin implementación |
 | REV-03 | Estado incompatible | integration | `tests/backend.test.cjs`| PARCIAL; ya reversada probado; ampliar demás estados |
 | REV-04 | Carrera de reversos | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
-| REV-05 | Reverso externo aceptado | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
+| REV-05 | Reverso externo aceptado | acceptance | `tests/backend.test.cjs` + smoke Compose/BFF | VERIFICADO; backend y rail-mock confirmaron el reverso; auditoría emitió cuatro eventos |
 | REV-06 | Reverso externo rechazado | acceptance | `tests/backend.test.cjs`| PARCIAL; implementado; falta test de rechazo del reverso |
 | REV-07 | Reverso externo indisponible | acceptance | `tests/backend.test.cjs`| PARCIAL; implementado; falta test de 503 del reverso |
 | REV-08 | Reverso externo ambiguo | acceptance | `tests/backend.test.cjs`| PARCIAL; implementado; falta timeout específico de reverso |
@@ -82,15 +82,15 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 | AUD-04 | Consumidor reiniciado | acceptance | `tests/backend.test.cjs`| PARCIAL; deduplicación probada; falta reinicio antes de ack |
 | AUD-05 | Fuera de orden | integration | `aud-05.integration.spec.ts` | PENDIENTE; sin implementación |
 | AUD-06 | Mensaje inválido | integration | `aud-06.integration.spec.ts` | PENDIENTE; sin implementación |
-| AUD-07 | Autorización de consulta | integration | `tests/backend.test.cjs`| PARCIAL; recurso ajeno probado; falta caída de payments |
+| AUD-07 | Autorización de consulta | integration | `tests/backend.test.cjs` + smoke Compose/BFF | PARCIAL; permiso y lectura integrada comprobados; falta simular caída de payments |
 | AUD-08 | Aislamiento SQL | integration | `tests/backend.test.cjs`| PARCIAL; tres denegaciones cruzadas probadas; ampliar combinaciones |
 | UI-01 | Doble clic y reintento | browser | `ui-01.browser.spec.ts` | PENDIENTE; sin implementación |
 | UI-02 | Seguimiento | browser | `ui-02.browser.spec.ts` | PENDIENTE; sin implementación |
 | UI-03 | Auditoría eventual | browser | `ui-03.browser.spec.ts` | PENDIENTE; sin implementación |
 | UI-04 | Tema y accesibilidad | browser | `ui-04.browser.spec.ts` | PENDIENTE; sin implementación |
 | UI-05 | Sesión expirada | browser | `ui-05.browser.spec.ts` | PENDIENTE; sin implementación |
-| OPS-01 | Arranque limpio | smoke | `tests/backend.test.cjs`| PARCIAL; backend Docker verificado; falta Compose completo con auxiliares |
-| OPS-02 | Secretos y redes | smoke | `tests/infrastructure.test.cjs`| PARCIAL; credenciales/redes backend probadas; falta browser integrado |
+| OPS-01 | Arranque limpio | smoke | `docker compose up --build -d --wait` | VERIFICADO; todos los servicios healthy en proyecto aislado |
+| OPS-02 | Secretos y redes | smoke | `tests/infrastructure.test.cjs` + smoke Compose/BFF | PARCIAL; permisos/red privada y cookies BFF comprobados; falta auditoría completa de despliegue |
 | SDD-01 | Contrato primero | review | `sdd-01.review.spec.ts` | PENDIENTE; sin implementación |
 | API-01 | Swagger por servicio | contract | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 
