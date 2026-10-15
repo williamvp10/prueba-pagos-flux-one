@@ -1,6 +1,6 @@
 # Despliegue: Compose y Dokploy
 
-Estado: los 12 servicios, sus dependencias, redes y volúmenes están definidos en Compose. El stack local completo reconstruyó y quedó healthy; el smoke entre procesos también se aprobó en un proyecto Compose aislado. No se ha desplegado en la VPS.
+Estado: los 12 servicios, sus dependencias, redes y volúmenes están definidos en Compose. El stack local completo reconstruyó y quedó healthy; el smoke entre procesos también se aprobó en un proyecto Compose aislado. Desplegado en Dokploy el 2026-10-15 desde el commit `6a71e46`. El dominio `central-banking-system.dokploywill.dpdns.org` apunta al servicio `web:3000`, usa HTTPS con el resolver `letsencrypt` y está detrás de Cloudflare. Tras configurar el dominio se volvió a desplegar Compose para que Dokploy añadiera las labels de Traefik. Verificación pública posterior: `/` respondió 307 hacia `/accounts`, `/login` respondió 200 y `/api/health` respondió 200 con `{"status":"ready"}`. En Dokploy, `web`, `auth`, `payments`, `audit`, `postgres`, `rabbitmq` y `rail-mock` quedaron healthy; `init-db`, migrations y seed terminaron con código 0. No se reiniciaron volúmenes.
 
 ## Servicios del archivo docker-compose.yml
 
@@ -46,7 +46,7 @@ El mismo `docker-compose.yml` contiene todos los servicios para local y producci
 
 ## Un único .env
 
-Pega las variables del `.env.example` en el editor Environment del proyecto Compose en Dokploy; Dokploy las guarda como `.env` junto al Compose. Compose no inyecta automáticamente todas esas variables a todos los contenedores: este archivo las mapea explícitamente por servicio para limitar secretos. No versionar `.env`; `.env.example` contiene placeholders no funcionales.
+Pega el contenido del `.env.dokploy` local en el editor Environment del proyecto Compose en Dokploy; Dokploy lo guarda como `.env` junto al Compose. Ese archivo local tiene secretos de producción, está excluido de Git y debe conservarse para recuperar las credenciales demo. `.env.example` es solo una plantilla segura con placeholders. Compose no inyecta automáticamente todas las variables a todos los contenedores: las asigna explícitamente por servicio para limitar secretos.
 
 Variables objetivo:
 
@@ -61,7 +61,7 @@ Variables objetivo:
 | Demo | DEMO_A_ID, DEMO_B_ID, DEMO_C_ID, DEMO_A_EMAIL, DEMO_B_EMAIL, DEMO_C_EMAIL, DEMO_A_PASSWORD, DEMO_B_PASSWORD, DEMO_C_PASSWORD |
 | Mock | RAIL_MODE, RAIL_SCENARIOS |
 
-Hosts y puertos internos derivan de nombres de servicio en Compose; no duplicar configuración de red en browser. Para Dokploy define `APP_ORIGIN=https://<dominio-publico>` sin slash final, `NODE_ENV=production` y secretos/UUIDs fuertes. Solo auth recibe private key; payments/audit reciben public key. Web solo URLs privadas y APP_ORIGIN; no recibe credenciales de DB/broker ni private key. Ningún secreto con prefijo NEXT_PUBLIC_. Generación inicial de keys/UUIDs/secrets demo A/B/C resuelta con `tools/setup-env.mjs`, que crea solo `.env` cuando falta. Los IDs y contraseñas demo deben permanecer estables entre despliegues para que el seed idempotente no cree identidades nuevas; cambia contraseñas reiniciando las credenciales por un procedimiento deliberado, no regenerando variables al desplegar.
+Hosts y puertos internos derivan de nombres de servicio en Compose; no duplicar configuración de red en browser. Para Dokploy define `APP_ORIGIN=https://central-banking-system.dokploywill.dpdns.org` sin slash final, `NODE_ENV=production` y secretos/UUIDs fuertes. Solo auth recibe private key; payments/audit reciben public key. Web solo URLs privadas y APP_ORIGIN; no recibe credenciales de DB/broker ni private key. Ningún secreto con prefijo NEXT_PUBLIC_. Los IDs y contraseñas demo deben permanecer estables entre despliegues para que el seed idempotente no cree identidades nuevas; cambia contraseñas reiniciando las credenciales por un procedimiento deliberado, no regenerando variables al desplegar.
 
 ## Seguridad y operación mínima
 
