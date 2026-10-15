@@ -2,7 +2,7 @@
 
 ## Estrategia
 
-Paquete principal: coverage-plan; secundario: contract-and-api-checks. Riesgos principales: doble débito, sobregiro, pérdida de reserva/evento y exposición de recursos ajenos. Las filas indican evidencia completa, parcial o pendiente; `pnpm test:all` verifica backend, rail y build/typecheck/unitarias del web.
+Paquete principal: coverage-plan; secundario: contract-and-api-checks. Riesgos principales: doble débito, doble cobro del mismo link, sobregiro, pérdida de reserva/evento, filtración del token QR y exposición de recursos ajenos. Las filas indican evidencia completa, parcial o pendiente; `pnpm test:all` verifica backend, rail y build/typecheck/unitarias del web.
 
 | Capa | Dependencias | Evidencia que debe producir |
 |---|---|---|
@@ -56,6 +56,14 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 | IDEM-05 | Caída antes de commit | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | IDEM-06 | Caída después de commit | integration | `idem-06.integration.spec.ts` | PENDIENTE; sin implementación |
 | IDEM-07 | Error de negocio consumido | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| LINK-01 | Creación idempotente y destino propio | integration + contract | `tests/backend.test.cjs` | VERIFICADO; replay canónico, 24h y cuenta ajena 404; `pnpm test` |
+| LINK-02 | Token firmado y resumen mínimo | unit + integration + security | `apps/payments/src/domain/payment-link-token.spec.ts`, `tests/backend.test.cjs` | VERIFICADO; HMAC alterado/malformado, resumen mínimo, 401/404 y key no consumida; `pnpm test` |
+| LINK-03 | Pago interno atómico | integration + acceptance | `tests/backend.test.cjs` | VERIFICADO; PostgreSQL real, transferencia, ledger, outbox y PAID en una TX; `pnpm test` |
+| LINK-04 | Carrera de un solo uso | integration | `tests/backend.test.cjs` | VERIFICADO; 20 pagos concurrentes, una transferencia y dos movimientos; `pnpm test` |
+| LINK-05 | Cancelación y expiración | integration | `tests/backend.test.cjs` | VERIFICADO; cancelación repetible y EXPIRED persistido al intentar pagar; `pnpm test` |
+| LINK-06 | Error financiero conserva link | integration | `tests/backend.test.cjs` | VERIFICADO; insuficiencia conserva saldo y ACTIVE sin efectos parciales; `pnpm test` |
+| LINK-07 | Privacidad posterior | integration + contract | `tests/backend.test.cjs` | VERIFICADO; creador/pagador acceden; tercero/link-resolve 404, incluyendo transferencia; `pnpm test` |
+| LINK-08 | Auditoría financiera y reverso | integration | `tests/backend.test.cjs` | VERIFICADO; eventos llevan paymentLinkId y reverso del pagador usa flujo existente; `pnpm test` |
 | RAIL-01 | Banco acepta | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` + smoke Compose/BFF | VERIFICADO; liquidación unitaria y flujo completo payments → rail-mock → BFF aceptado |
 | RAIL-02 | Banco rechaza | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` | VERIFICADO backend; rechazo marca FAILED y libera reserva sin débito; integración usa proveedor HTTP controlado |
 | RAIL-03 | Banco no disponible | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` | VERIFICADO backend; indisponibilidad deja PENDING y conserva reserva; integración usa proveedor HTTP controlado |
@@ -89,6 +97,10 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 | UI-03 | Auditoría eventual | browser | `ui-03.browser.spec.ts` | PENDIENTE; sin implementación |
 | UI-04 | Tema y accesibilidad | browser | `ui-04.browser.spec.ts` | PENDIENTE; sin implementación |
 | UI-05 | Sesión expirada | browser | `ui-05.browser.spec.ts` | PENDIENTE; sin implementación |
+| UI-06 | Crear/compartir/descargar QR | browser | `payment-links.browser.spec.ts` | PENDIENTE; otro agente implementará apps/web contra browser.openapi.yaml |
+| UI-07 | Abrir QR y login inline | browser + security | `payment-links.browser.spec.ts` | PENDIENTE; validar fragmento eliminado y token solo en memoria |
+| UI-08 | Confirmar/reintentar pago | browser + acceptance | `payment-links.browser.spec.ts` | PENDIENTE; doble clic, misma key, fallo técnico y navegación a transferencia |
+| UI-09 | Estados privados y accesibilidad | browser | `payment-links.browser.spec.ts` | PENDIENTE; 360/1440, teclado, alertas, contraste y mensajes no enumerables |
 | OPS-01 | Arranque limpio | smoke | `docker compose up --build -d --wait` | VERIFICADO; todos los servicios healthy en proyecto aislado |
 | OPS-02 | Secretos y redes | smoke | `tests/infrastructure.test.cjs` + smoke Compose/BFF | PARCIAL; permisos/red privada y cookies BFF comprobados; falta auditoría completa de despliegue |
 | SDD-01 | Contrato primero | review | `sdd-01.review.spec.ts` | PENDIENTE; sin implementación |
@@ -96,6 +108,6 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 
 ## Evidencia ejecutable actual
 
-`pnpm test`: 13 unitarias de Payments (5 de dinero y 8 de transiciones) + 13 de integración/configuración, todas aprobadas. Se validan los responses HTTP de la suite contra OpenAPI. `IDEM-05` además se ejecutó aislado con trigger que falla en transfer.completed, después de escribir los movimientos, para demostrar rollback real de dinero/outbox/key. Los nombres antiguos de pruebas planeadas en filas pendientes no son archivos existentes.
+`pnpm test`: 15 unitarias de Payments (incluye firma HMAC) + 15 de integración/configuración, todas aprobadas. Se validan las respuestas HTTP de la suite contra OpenAPI. `IDEM-05` además se ejecuta con trigger que falla en `transfer.completed`, después de escribir los movimientos, para demostrar rollback real de dinero/outbox/key. Para links, se comprueba una transferencia y dos movimientos bajo concurrencia y ausencia de efectos ante fondos insuficientes; una inyección específica tras ledger link queda como cobertura ampliable.
 
 API-01 cubre UI/JSON Swagger de los tres servicios. Los tests bancarios usan un proveedor controlado de test; MOCK-01..03 están verificados con la suite propia del mock, y RAIL-01/REV-05 cuentan además con smoke integrado contra el mock en Compose. RAIL-02..05 comprueban backend con proveedor controlado, pero falta repetir esos escenarios específicos a través del rail-mock integrado. Reinicios reales en ventanas de confirm/ack requieren pruebas adicionales aunque la deduplicación ya esté verificada.

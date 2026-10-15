@@ -164,6 +164,121 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payment-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listar links creados por la sesión */
+        get: operations["listPaymentLinks"];
+        put?: never;
+        /**
+         * Crear link de cobro de un solo uso
+         * @description El destino debe pertenecer a la sesión. No reserva ni mueve dinero. Vence exactamente 24 horas después de createdAt.
+         */
+        post: operations["createPaymentLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-links/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolver invitación activa
+         * @description Requiere sesión cookie; solo devuelve resumen mínimo. Token inválido o link no ACTIVE responde 404. Cache-Control private, no-store.
+         */
+        post: operations["resolvePaymentLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-links/pay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pagar link con una cuenta propia
+         * @description Pago interno, atómico y de un solo uso. El BFF conserva body e Idempotency-Key y nunca persiste el token.
+         */
+        post: operations["payPaymentLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-links/{paymentLinkId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar link como participante */
+        get: operations["getPaymentLink"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-links/{paymentLinkId}/share-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Obtener token compartible
+         * @description Solo creador de link ACTIVE. Cache-Control private, no-store; el browser construye APP_ORIGIN/pay#token.
+         */
+        get: operations["getPaymentLinkShareToken"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-links/{paymentLinkId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancelar link activo */
+        post: operations["cancelPaymentLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transfers": {
         parameters: {
             query?: never;
@@ -296,6 +411,76 @@ export interface components {
             code: string;
             label: string;
         };
+        /** @enum {string} */
+        PaymentLinkStatus: "ACTIVE" | "PAID" | "CANCELLED" | "EXPIRED";
+        CreatePaymentLink: {
+            /** Format: uuid */
+            destinationAccountId: string;
+            /** @example 1250.25 */
+            amount: string;
+            /** @enum {string} */
+            currency: "COP";
+        };
+        PaymentLinkDestination: {
+            /** Format: uuid */
+            accountId: string;
+            /** @example ACC-001 */
+            code: string;
+            label: string;
+        };
+        PaymentLinkCheckoutDestination: {
+            /** @example ACC-001 */
+            code: string;
+            label: string;
+        };
+        PaymentLink: {
+            /** Format: uuid */
+            id: string;
+            destination: components["schemas"]["PaymentLinkDestination"];
+            /** @example 1250.25 */
+            amount: string;
+            /** @enum {string} */
+            currency: "COP";
+            status: components["schemas"]["PaymentLinkStatus"];
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            paidTransferId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PaymentLinkPage: {
+            items: components["schemas"]["PaymentLink"][];
+            nextCursor: string | null;
+        };
+        PaymentLinkShareToken: {
+            token: string;
+        };
+        ResolvePaymentLink: {
+            token: string;
+        };
+        PaymentLinkCheckout: {
+            /** Format: uuid */
+            linkId: string;
+            destination: components["schemas"]["PaymentLinkCheckoutDestination"];
+            /** @example 1250.25 */
+            amount: string;
+            /** @enum {string} */
+            currency: "COP";
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        PayPaymentLink: {
+            token: string;
+            /** Format: uuid */
+            sourceAccountId: string;
+        };
+        PaymentLinkPayment: {
+            paymentLink: components["schemas"]["PaymentLink"];
+            transfer: components["schemas"]["Transfer"];
+        };
         CreateTransfer: {
             /** Format: uuid */
             sourceAccountId: string;
@@ -333,6 +518,10 @@ export interface components {
             id: string;
             /** Format: uuid */
             sourceAccountId: string;
+            /** @enum {string} */
+            origin: "DIRECT" | "PAYMENT_LINK";
+            /** Format: uuid */
+            paymentLinkId: string | null;
             destination: components["schemas"]["Beneficiary"];
             /** @example 1000000.00 */
             amount: string;
@@ -415,6 +604,15 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description Origen de mutación no permitido por el BFF */
+        403: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description Recurso inexistente o sin permiso */
         404: {
             headers: {
@@ -475,8 +673,11 @@ export interface components {
         };
     };
     parameters: {
-        /** @description Una key por intención financiera. Persistir en reintentos; UUID recomendado. */
+        /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
         IdempotencyKey: string;
+        PaymentLinkId: string;
+        /** @description Header gestionado por navegador, debe coincidir con APP_ORIGIN; no configurarlo desde JavaScript. */
+        Origin: string;
     };
     requestBodies: never;
     headers: never;
@@ -753,6 +954,237 @@ export interface operations {
             503: components["responses"]["503"];
         };
     };
+    listPaymentLinks: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+                status?: components["schemas"]["PaymentLinkStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de links propios */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLinkPage"];
+                };
+            };
+            401: components["responses"]["401"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    createPaymentLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Header gestionado por navegador, debe coincidir con APP_ORIGIN; no configurarlo desde JavaScript. */
+                Origin: components["parameters"]["Origin"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePaymentLink"];
+            };
+        };
+        responses: {
+            /** @description Link ACTIVE creado */
+            201: {
+                headers: {
+                    /** @description true cuando se devuelve el resultado guardado */
+                    "Idempotency-Replayed"?: boolean;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLink"];
+                };
+            };
+            400: components["responses"]["400"];
+            401: components["responses"]["401"];
+            403: components["responses"]["403"];
+            404: components["responses"]["404"];
+            409: components["responses"]["409"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    resolvePaymentLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Header gestionado por navegador, debe coincidir con APP_ORIGIN; no configurarlo desde JavaScript. */
+                Origin: components["parameters"]["Origin"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolvePaymentLink"];
+            };
+        };
+        responses: {
+            /** @description Resumen mínimo del cobro activo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLinkCheckout"];
+                };
+            };
+            401: components["responses"]["401"];
+            403: components["responses"]["403"];
+            404: components["responses"]["404"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    payPaymentLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Header gestionado por navegador, debe coincidir con APP_ORIGIN; no configurarlo desde JavaScript. */
+                Origin: components["parameters"]["Origin"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayPaymentLink"];
+            };
+        };
+        responses: {
+            /** @description Link pagado y transferencia interna COMPLETED */
+            201: {
+                headers: {
+                    /** @description true cuando se devuelve el resultado guardado */
+                    "Idempotency-Replayed"?: boolean;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLinkPayment"];
+                };
+            };
+            400: components["responses"]["400"];
+            401: components["responses"]["401"];
+            403: components["responses"]["403"];
+            404: components["responses"]["404"];
+            409: components["responses"]["409"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    getPaymentLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentLinkId: components["parameters"]["PaymentLinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado vivo del link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLink"];
+                };
+            };
+            401: components["responses"]["401"];
+            404: components["responses"]["404"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    getPaymentLinkShareToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentLinkId: components["parameters"]["PaymentLinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Token firmado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLinkShareToken"];
+                };
+            };
+            401: components["responses"]["401"];
+            404: components["responses"]["404"];
+            409: components["responses"]["409"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    cancelPaymentLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Header gestionado por navegador, debe coincidir con APP_ORIGIN; no configurarlo desde JavaScript. */
+                Origin: components["parameters"]["Origin"];
+            };
+            path: {
+                paymentLinkId: components["parameters"]["PaymentLinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link CANCELLED o replay */
+            200: {
+                headers: {
+                    /** @description true cuando se devuelve el resultado guardado */
+                    "Idempotency-Replayed"?: boolean;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLink"];
+                };
+            };
+            400: components["responses"]["400"];
+            401: components["responses"]["401"];
+            403: components["responses"]["403"];
+            404: components["responses"]["404"];
+            409: components["responses"]["409"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
     listTransfers: {
         parameters: {
             query?: {
@@ -785,7 +1217,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Una key por intención financiera. Persistir en reintentos; UUID recomendado. */
+                /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Header gestionado por navegador, debe coincidir con APP_ORIGIN; no configurarlo desde JavaScript. */
                 Origin: string;
@@ -870,7 +1302,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Una key por intención financiera. Persistir en reintentos; UUID recomendado. */
+                /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 /** @description Header gestionado por navegador, debe coincidir con APP_ORIGIN; no configurarlo desde JavaScript. */
                 Origin: string;

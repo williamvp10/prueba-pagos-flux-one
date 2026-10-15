@@ -7,7 +7,7 @@ const services = {
   ],
   payments: [
     "../apps/payments/dist/infrastructure/store",
-    "PaymentsMigration1792073600001",
+    ["PaymentsMigration1792073600001", "PaymentLinksMigration1792073600002"],
   ],
   audit: [
     "../apps/audit/dist/infrastructure/store",
@@ -18,8 +18,10 @@ const services = {
   for (const name of process.argv[2]
     ? [process.argv[2]]
     : Object.keys(services)) {
-    const [file, key] = services[name];
-    const db = database(name, [require(file)[key]], true);
+    const [file, keys] = services[name];
+    const migrationKeys = Array.isArray(keys) ? keys : [keys];
+    const migrations = migrationKeys.map((key) => require(file)[key]);
+    const db = database(name, migrations, true);
     await db.initialize();
     try {
       await db.runMigrations({ transaction: "all" });

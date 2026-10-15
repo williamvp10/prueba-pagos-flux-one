@@ -45,10 +45,33 @@ Table payment_schema.external_beneficiaries {
   label text [not null]
 }
 
+Table payment_schema.payment_links {
+  id uuid [pk]
+  creator_id uuid [not null, note: 'UUID lógico de auth_schema.users; sin FK entre servicios']
+  destination_account_id uuid [not null]
+  amount_minor bigint [not null, note: 'Centavos COP; CHECK: 0 < amount_minor <= 99999999999999']
+  status text [not null, default: 'ACTIVE', note: 'CHECK: ACTIVE, PAID, CANCELLED o EXPIRED']
+  payer_id uuid [note: 'UUID lógico del pagador efectivo; NULL antes del pago']
+  correlation_id text [not null]
+  expires_at timestamptz [not null, note: "created_at + interval '24 hours'; definido por reloj del servidor"]
+  cancelled_at timestamptz
+  paid_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (creator_id, created_at, id) [name: 'payment_link_history', note: 'El índice real ordena fecha e id DESC']
+    (status, expires_at) [name: 'payment_link_expiry']
+  }
+
+  Note: 'No persiste token, firma ni URL. El token pl1 se deriva con HMAC desde el UUID y un secreto exclusivo de Payments.'
+}
+
 Table payment_schema.transfers {
   id uuid [pk]
   actor_id uuid [not null, note: 'UUID lógico de auth_schema.users; sin FK entre servicios']
   source_id uuid [not null]
+  payment_link_id uuid [unique, note: 'NULL para transferencias directas; unicidad impide pagar dos veces el mismo link']
   destination_kind text [not null, note: 'CHECK: INTERNAL o EXTERNAL']
   destination_code text [not null, note: 'Código de cuenta local o beneficiario externo; destino polimórfico, sin FK']
   amount_minor bigint [not null, note: 'Centavos COP; CHECK: 0 < amount_minor <= 99999999999999']
@@ -161,6 +184,8 @@ Table rail_mock.operations {
 
 // Foreign keys dentro del esquema Payments, según las migraciones.
 Ref: payment_schema.transfers.source_id > payment_schema.accounts.id
+Ref: payment_schema.payment_links.destination_account_id > payment_schema.accounts.id
+Ref: payment_schema.transfers.payment_link_id > payment_schema.payment_links.id
 Ref: payment_schema.reversals.transfer_id > payment_schema.transfers.id
 Ref: payment_schema.ledger_entries.account_id > payment_schema.accounts.id
 Ref: payment_schema.ledger_entries.transfer_id > payment_schema.transfers.id

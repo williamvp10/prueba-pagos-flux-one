@@ -21,6 +21,9 @@ Los archivos HTTP describen APIs objetivo, no implementadas todavía. El contrat
 - Historial: limit 20 por defecto, máximo 100; cursor opaco inválido → 422. Transferencias: createdAt DESC e id DESC; auditoría: sequence ASC. Cursor incluye filtros para impedir reutilización incompatible.
 - Dates UTC ISO8601. UUID canónico en respuestas; normalizar IDs/amount/currency antes de hash semántico. COP exclusivamente. No timestamps del cliente.
 - Reverso público sin body ni amount: el servidor deriva importe total. No soporta PATCH/DELETE/cancel ni reverso parcial.
+- Links de cobro: `POST /payment-links`, `/payment-links/pay` y `/{id}/cancel` exigen keys independientes. Resolver token y emitir share-token son lecturas autenticadas sin idempotency key. Solo pagos internos, un uso y 24 h de vigencia.
+- El token `pl1` es una invitación por posesión y no forma parte de snapshots idempotentes, storage browser, logs ni eventos. El browser lo transporta desde un fragmento URL hacia bodies POST; responses de token/resolución usan `private, no-store`.
+- Códigos adicionales: PAYMENT_LINK_EXPIRED, PAYMENT_LINK_NOT_ACTIVE y PAYMENT_LINK_ALREADY_PAID. Token inválido, recurso ajeno o resolución de link no activo usa RESOURCE_NOT_FOUND para no crear un oráculo.
 
 ## Versionado y checks
 

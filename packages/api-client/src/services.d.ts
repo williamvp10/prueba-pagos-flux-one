@@ -164,6 +164,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/payment-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar links creados por el usuario
+         * @description Solo devuelve links cuyo creatorId corresponde al JWT. Orden createdAt DESC, id DESC; el estado expirado se calcula con reloj del servidor.
+         */
+        get: operations["listPaymentLinks"];
+        put?: never;
+        /**
+         * Crear link de cobro de un solo uso
+         * @description El destino debe pertenecer al actor. No reserva ni mueve dinero. Vence exactamente 24 horas después de createdAt. Idempotencia por subject + CREATE_PAYMENT_LINK + key; el snapshot no contiene token.
+         */
+        post: operations["createPaymentLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-links/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolver invitación activa
+         * @description Requiere JWT y token válido. Solo revela monto, COP, código/etiqueta receptora y vencimiento. Token inválido o link no ACTIVE responde 404 sin distinguir causa. Cache-Control private, no-store.
+         */
+        post: operations["resolvePaymentLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-links/pay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pagar link con una cuenta propia
+         * @description Pago interno, atómico y de un solo uso. Idempotencia por subject + PAY_PAYMENT_LINK + key; el hash contiene linkId validado y sourceAccountId, nunca el token completo.
+         */
+        post: operations["payPaymentLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-links/{paymentLinkId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar link como participante
+         * @description Antes del pago solo creador; después del pago creador y pagador. Recurso ajeno responde 404.
+         */
+        get: operations["getPaymentLink"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-links/{paymentLinkId}/share-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Emitir token compartible
+         * @description Solo el creador de un link ACTIVE. El token se deriva y no se persiste. Cache-Control private, no-store.
+         */
+        get: operations["getPaymentLinkShareToken"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/payment-links/{paymentLinkId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancelar link activo
+         * @description Solo el creador. Idempotencia por subject + CANCEL_PAYMENT_LINK + key; repetir cancelación devuelve CANCELLED, mientras PAID o EXPIRED producen 409.
+         */
+        post: operations["cancelPaymentLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/transfers": {
         parameters: {
             query?: never;
@@ -308,6 +432,76 @@ export interface components {
             code: string;
             label: string;
         };
+        /** @enum {string} */
+        PaymentLinkStatus: "ACTIVE" | "PAID" | "CANCELLED" | "EXPIRED";
+        CreatePaymentLink: {
+            /** Format: uuid */
+            destinationAccountId: string;
+            /** @example 1250.25 */
+            amount: string;
+            /** @enum {string} */
+            currency: "COP";
+        };
+        PaymentLinkDestination: {
+            /** Format: uuid */
+            accountId: string;
+            /** @example ACC-001 */
+            code: string;
+            label: string;
+        };
+        PaymentLinkCheckoutDestination: {
+            /** @example ACC-001 */
+            code: string;
+            label: string;
+        };
+        PaymentLink: {
+            /** Format: uuid */
+            id: string;
+            destination: components["schemas"]["PaymentLinkDestination"];
+            /** @example 1250.25 */
+            amount: string;
+            /** @enum {string} */
+            currency: "COP";
+            status: components["schemas"]["PaymentLinkStatus"];
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            paidTransferId: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PaymentLinkPage: {
+            items: components["schemas"]["PaymentLink"][];
+            nextCursor: string | null;
+        };
+        PaymentLinkShareToken: {
+            token: string;
+        };
+        ResolvePaymentLink: {
+            token: string;
+        };
+        PaymentLinkCheckout: {
+            /** Format: uuid */
+            linkId: string;
+            destination: components["schemas"]["PaymentLinkCheckoutDestination"];
+            /** @example 1250.25 */
+            amount: string;
+            /** @enum {string} */
+            currency: "COP";
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        PayPaymentLink: {
+            token: string;
+            /** Format: uuid */
+            sourceAccountId: string;
+        };
+        PaymentLinkPayment: {
+            paymentLink: components["schemas"]["PaymentLink"];
+            transfer: components["schemas"]["Transfer"];
+        };
         CreateTransfer: {
             /** Format: uuid */
             sourceAccountId: string;
@@ -345,6 +539,10 @@ export interface components {
             id: string;
             /** Format: uuid */
             sourceAccountId: string;
+            /** @enum {string} */
+            origin: "DIRECT" | "PAYMENT_LINK";
+            /** Format: uuid */
+            paymentLinkId: string | null;
             destination: components["schemas"]["Beneficiary"];
             /** @example 1000000.00 */
             amount: string;
@@ -482,8 +680,9 @@ export interface components {
         };
     };
     parameters: {
-        /** @description Una key por intención financiera. Persistir en reintentos; UUID recomendado. */
+        /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
         IdempotencyKey: string;
+        PaymentLinkId: string;
     };
     requestBodies: never;
     headers: never;
@@ -708,6 +907,224 @@ export interface operations {
             503: components["responses"]["503"];
         };
     };
+    listPaymentLinks: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+                status?: components["schemas"]["PaymentLinkStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de links propios */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLinkPage"];
+                };
+            };
+            401: components["responses"]["401"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    createPaymentLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePaymentLink"];
+            };
+        };
+        responses: {
+            /** @description Link ACTIVE creado */
+            201: {
+                headers: {
+                    /** @description true cuando se devuelve el resultado guardado */
+                    "Idempotency-Replayed"?: boolean;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLink"];
+                };
+            };
+            400: components["responses"]["400"];
+            401: components["responses"]["401"];
+            404: components["responses"]["404"];
+            409: components["responses"]["409"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    resolvePaymentLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolvePaymentLink"];
+            };
+        };
+        responses: {
+            /** @description Resumen mínimo del cobro activo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLinkCheckout"];
+                };
+            };
+            401: components["responses"]["401"];
+            404: components["responses"]["404"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    payPaymentLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayPaymentLink"];
+            };
+        };
+        responses: {
+            /** @description Link pagado y transferencia interna COMPLETED */
+            201: {
+                headers: {
+                    /** @description true cuando se devuelve el resultado guardado */
+                    "Idempotency-Replayed"?: boolean;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLinkPayment"];
+                };
+            };
+            400: components["responses"]["400"];
+            401: components["responses"]["401"];
+            404: components["responses"]["404"];
+            409: components["responses"]["409"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    getPaymentLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentLinkId: components["parameters"]["PaymentLinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado vivo del link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLink"];
+                };
+            };
+            401: components["responses"]["401"];
+            404: components["responses"]["404"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    getPaymentLinkShareToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paymentLinkId: components["parameters"]["PaymentLinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Token para construir APP_ORIGIN/pay#token */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLinkShareToken"];
+                };
+            };
+            401: components["responses"]["401"];
+            404: components["responses"]["404"];
+            409: components["responses"]["409"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
+    cancelPaymentLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                paymentLinkId: components["parameters"]["PaymentLinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link cancelado o replay de cancelación */
+            200: {
+                headers: {
+                    /** @description true cuando se devuelve el resultado guardado */
+                    "Idempotency-Replayed"?: boolean;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentLink"];
+                };
+            };
+            400: components["responses"]["400"];
+            401: components["responses"]["401"];
+            404: components["responses"]["404"];
+            409: components["responses"]["409"];
+            422: components["responses"]["422"];
+            500: components["responses"]["500"];
+            503: components["responses"]["503"];
+        };
+    };
     listTransfers: {
         parameters: {
             query?: {
@@ -740,7 +1157,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Una key por intención financiera. Persistir en reintentos; UUID recomendado. */
+                /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path?: never;
@@ -814,7 +1231,7 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Una key por intención financiera. Persistir en reintentos; UUID recomendado. */
+                /** @description Una key por intención durable (financiera o ciclo de link). Persistir en reintentos; UUID recomendado. */
                 "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path: {

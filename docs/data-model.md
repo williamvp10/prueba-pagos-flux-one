@@ -7,7 +7,7 @@ El diagrama importable en dbdiagram.io está en [`database.dbml`](database.dbml)
 | Esquema | Tablas objetivo | Rol runtime |
 |---|---|---|
 | auth_schema | users, sessions | auth_app |
-| payment_schema | accounts, external_beneficiaries, transfers, reversals, ledger_entries, idempotency_records, outbox_events | payments_app |
+| payment_schema | accounts, external_beneficiaries, payment_links, transfers, reversals, ledger_entries, idempotency_records, outbox_events | payments_app |
 | audit_schema | audit_events | audit_app |
 
 Un usuario PostgreSQL administrador solo inicializa esquemas, owners y roles; no lo usan servicios. Rol migrador por esquema; roles runtime con DML limitado. Revocar acceso público innecesario y probar denegaciones cruzadas. Sin FKs entre esquemas; `owner_id` y `actor_id` son UUID de identidad, no relaciones ORM a auth.
@@ -17,6 +17,8 @@ Un usuario PostgreSQL administrador solo inicializa esquemas, owners y roles; no
 ```mermaid
 erDiagram
     ACCOUNTS ||--o{ TRANSFERS : source
+    ACCOUNTS ||--o{ PAYMENT_LINKS : receives
+    PAYMENT_LINKS ||--o| TRANSFERS : paid_by
     ACCOUNTS ||--o{ LEDGER_ENTRIES : movements
     TRANSFERS ||--o{ LEDGER_ENTRIES : postings
     TRANSFERS ||--o{ REVERSALS : attempts
@@ -38,7 +40,8 @@ erDiagram
 
 - accounts: UUID, `code` único, owner UUID, role PRIMARY/SECONDARY, balance/reserved bigint, timestamps. Índice único owner/role; ACC-001, ACC-002 y ACC-003 son PRIMARY de usuarios demo distintos.
 - external_beneficiaries: códigos `EXT-001`, `EXT-002`, nombre, estado activo. Catálogo igual al mock; sin CRUD público v1.
-- transfers: UUID, actor, source FK local, destination kind/code, monto, moneda COP, estado, secuencia, referencia bancaria única, datos de lease y próximo intento, timestamps. El destino interno se valida por código dentro del servicio; no hay API de borrado de cuentas en v1. La columna de destino también representa externos y no tiene FK.
+- payment_links: UUID, creator UUID lógico, cuenta receptora FK local, monto bigint, estado ACTIVE/PAID/CANCELLED/EXPIRED, pagador UUID lógico nullable, vencimiento fijo a `created_at + interval '24 hours'`, correlación y timestamps. Índices por creador/fecha y estado/vencimiento. No guarda token, firma ni URL compartida.
+- transfers: UUID, actor, source FK local, `payment_link_id` FK nullable y única, destination kind/code, monto, moneda COP, estado, secuencia, referencia bancaria única, datos de lease y próximo intento, timestamps. El destino interno se valida por código dentro del servicio; no hay API de borrado de cuentas en v1. La columna de destino también representa externos y no tiene FK.
 - reversals: UUID, transferencia, actor, monto completo, estado, referencia bancaria única, lease/reintentos. Índice único parcial por transferencia para estados PENDING/PROCESSING/UNKNOWN/COMPLETED; FAILED permite un nuevo intento con nueva key.
 - idempotency_records: clave compuesta única `(subject_id, operation, key)`, hash SHA-256 de campos semánticos normalizados, status HTTP y body de resultado. No expirar durante v1.
 - outbox_events: event UUID, transferencia, secuencia, payload, published_at, attempts, next_attempt_at, lease_until. Único por transferencia/secuencia.
@@ -57,6 +60,21 @@ erDiagram
 7. Error técnico que aborta TX no consume key ni devuelve éxito; HTTP 503 y reintento con la misma key. Deadlocks/serialization failures permiten máximo tres reintentos completos con la misma key.
 
 Operación de idempotencia de reverso incluye el ID de transferencia en el hash; reutilizar la key para otra transferencia produce conflicto. Canonicalización ignora orden JSON; rechaza campos desconocidos. No incluir timestamps ni headers en el hash.
+
+Links de cobro usan tres namespaces adicionales:
+
+- `CREATE_PAYMENT_LINK`: hash de destinationAccountId normalizado, monto canónico y COP. El snapshot no contiene token.
+- `CANCEL_PAYMENT_LINK`: hash del linkId. Repetir una cancelación ya efectiva devuelve el estado CANCELLED; PAID/EXPIRED son conflictos definitivos.
+- `PAY_PAYMENT_LINK`: validar estructura/firma del token antes de reclamar key; el hash semántico contiene linkId y sourceAccountId, nunca el token completo. Error definitivo consume key; error técnico con rollback no.
+
+Pago toma lock del link antes de las cuentas. Bajo el lock verifica ACTIVE y `now < expires_at`; después bloquea origen/destino por UUID ascendente y reutiliza las invariantes de transferencia interna. Link PAID, transferencia COMPLETED, dos movimientos, outbox y snapshot HTTP se comprometen juntos. Fondos insuficientes, misma cuenta o límite de crédito no cambian el link; una nueva intención puede usar otra key.
+
+## Token de invitación
+
+- Formato versionado `pl1.<linkId uuid>.<mac base64url>`; `mac = HMAC-SHA256(PAYMENT_LINK_SIGNING_SECRET, "pl1:" + linkId canónico)`.
+- Comparar MAC decodificado con longitud fija y comparación timing-safe. Rechazar forma, versión, UUID o firma inválida antes de consultar datos sensibles.
+- El secreto tiene al menos 32 bytes aleatorios, vive solo en configuración de payments y no usa prefijo `NEXT_PUBLIC_`. Rotarlo invalida links ACTIVE, por lo que la operación se programa después de su ventana máxima de 24 horas o acepta explícitamente esa invalidación.
+- El token se deriva cuando el creador solicita compartir; no está en `payment_links`, `idempotency_records`, logs, outbox ni audit. Responses de token/resolución usan `Cache-Control: private, no-store`.
 
 ## Trabajo durable y recuperación
 

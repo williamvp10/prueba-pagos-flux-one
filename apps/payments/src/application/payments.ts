@@ -29,6 +29,8 @@ export function transferView(t: Transfer, r: Reversal | null) {
   return {
     id: t.id,
     sourceAccountId: t.source,
+    origin: t.paymentLinkId ? "PAYMENT_LINK" : "DIRECT",
+    paymentLinkId: t.paymentLinkId ?? null,
     destination: { kind: t.kind, code: t.destination, label: t.destination },
     amount: money(t.amount),
     currency: "COP",
@@ -180,6 +182,7 @@ export class Payments {
       },
     );
   }
+
   async reverse(actor: string, key: string, id: string, requestId: string) {
     return this.command(
       actor,

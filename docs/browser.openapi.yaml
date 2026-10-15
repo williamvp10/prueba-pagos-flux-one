@@ -2,10 +2,11 @@
 openapi: 3.0.3
 info:
   title: Flux One browser BFF API
-  version: 1.0.0
+  version: 1.1.0
   description: Contrato browser → Next.js BFF. Cookies HttpOnly; no tokens en responses.
     Derivado del contrato de servicios, con adaptación auth y servidores del mismo
-    origen. Toda mutación valida Origin contra APP_ORIGIN.
+    origen. Toda mutación valida Origin contra APP_ORIGIN. Core v1 implementado;
+    links de cobro v1.1 especificados y pendientes de implementación.
   license:
     name: UNLICENSED
 servers:
@@ -308,6 +309,256 @@ paths:
           "$ref": "#/components/responses/500"
         '503':
           "$ref": "#/components/responses/503"
+  "/payment-links":
+    post:
+      operationId: createPaymentLink
+      tags:
+      - Payments
+      summary: Crear link de cobro de un solo uso
+      description: El destino debe pertenecer a la sesión. No reserva ni mueve dinero. Vence exactamente 24 horas después de createdAt.
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - "$ref": "#/components/parameters/Origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreatePaymentLink"
+      responses:
+        '201':
+          description: Link ACTIVE creado
+          headers:
+            Idempotency-Replayed:
+              description: true cuando se devuelve el resultado guardado
+              schema:
+                type: boolean
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PaymentLink"
+        '400':
+          "$ref": "#/components/responses/400"
+        '401':
+          "$ref": "#/components/responses/401"
+        '403':
+          "$ref": "#/components/responses/403"
+        '404':
+          "$ref": "#/components/responses/404"
+        '409':
+          "$ref": "#/components/responses/409"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+    get:
+      operationId: listPaymentLinks
+      tags:
+      - Payments
+      summary: Listar links creados por la sesión
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 512
+      - name: status
+        in: query
+        schema:
+          "$ref": "#/components/schemas/PaymentLinkStatus"
+      responses:
+        '200':
+          description: Página de links propios
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PaymentLinkPage"
+        '401':
+          "$ref": "#/components/responses/401"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+  "/payment-links/resolve":
+    post:
+      operationId: resolvePaymentLink
+      tags:
+      - Payments
+      summary: Resolver invitación activa
+      description: Requiere sesión cookie; solo devuelve resumen mínimo. Token inválido o link no ACTIVE responde 404. Cache-Control private, no-store.
+      parameters:
+      - "$ref": "#/components/parameters/Origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ResolvePaymentLink"
+      responses:
+        '200':
+          description: Resumen mínimo del cobro activo
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PaymentLinkCheckout"
+        '401':
+          "$ref": "#/components/responses/401"
+        '403':
+          "$ref": "#/components/responses/403"
+        '404':
+          "$ref": "#/components/responses/404"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+  "/payment-links/pay":
+    post:
+      operationId: payPaymentLink
+      tags:
+      - Payments
+      summary: Pagar link con una cuenta propia
+      description: Pago interno, atómico y de un solo uso. El BFF conserva body e Idempotency-Key y nunca persiste el token.
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - "$ref": "#/components/parameters/Origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PayPaymentLink"
+      responses:
+        '201':
+          description: Link pagado y transferencia interna COMPLETED
+          headers:
+            Idempotency-Replayed:
+              description: true cuando se devuelve el resultado guardado
+              schema:
+                type: boolean
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PaymentLinkPayment"
+        '400':
+          "$ref": "#/components/responses/400"
+        '401':
+          "$ref": "#/components/responses/401"
+        '403':
+          "$ref": "#/components/responses/403"
+        '404':
+          "$ref": "#/components/responses/404"
+        '409':
+          "$ref": "#/components/responses/409"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+  "/payment-links/{paymentLinkId}":
+    get:
+      operationId: getPaymentLink
+      tags:
+      - Payments
+      summary: Consultar link como participante
+      parameters:
+      - "$ref": "#/components/parameters/PaymentLinkId"
+      responses:
+        '200':
+          description: Estado vivo del link
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PaymentLink"
+        '401':
+          "$ref": "#/components/responses/401"
+        '404':
+          "$ref": "#/components/responses/404"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+  "/payment-links/{paymentLinkId}/share-token":
+    get:
+      operationId: getPaymentLinkShareToken
+      tags:
+      - Payments
+      summary: Obtener token compartible
+      description: Solo creador de link ACTIVE. Cache-Control private, no-store; el browser construye APP_ORIGIN/pay#token.
+      parameters:
+      - "$ref": "#/components/parameters/PaymentLinkId"
+      responses:
+        '200':
+          description: Token firmado
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PaymentLinkShareToken"
+        '401':
+          "$ref": "#/components/responses/401"
+        '404':
+          "$ref": "#/components/responses/404"
+        '409':
+          "$ref": "#/components/responses/409"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+  "/payment-links/{paymentLinkId}/cancel":
+    post:
+      operationId: cancelPaymentLink
+      tags:
+      - Payments
+      summary: Cancelar link activo
+      parameters:
+      - "$ref": "#/components/parameters/PaymentLinkId"
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - "$ref": "#/components/parameters/Origin"
+      responses:
+        '200':
+          description: Link CANCELLED o replay
+          headers:
+            Idempotency-Replayed:
+              description: true cuando se devuelve el resultado guardado
+              schema:
+                type: boolean
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PaymentLink"
+        '400':
+          "$ref": "#/components/responses/400"
+        '401':
+          "$ref": "#/components/responses/401"
+        '403':
+          "$ref": "#/components/responses/403"
+        '404':
+          "$ref": "#/components/responses/404"
+        '409':
+          "$ref": "#/components/responses/409"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
   "/transfers":
     post:
       operationId: createTransfer
@@ -581,12 +832,27 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      description: Una key por intención financiera. Persistir en reintentos; UUID
-        recomendado.
+      description: Una key por intención durable (financiera o ciclo de link). Persistir
+        en reintentos; UUID recomendado.
       schema:
         type: string
         pattern: "^[A-Za-z0-9._:-]{1,128}$"
         example: 7b149aee-0b55-4d4d-9a03-0762c9758b38
+    PaymentLinkId:
+      name: paymentLinkId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Origin:
+      name: Origin
+      in: header
+      required: true
+      description: Header gestionado por navegador, debe coincidir con APP_ORIGIN; no configurarlo desde JavaScript.
+      schema:
+        type: string
+        format: uri
   responses:
     '400':
       description: Header o request inválido
@@ -596,6 +862,12 @@ components:
             "$ref": "#/components/schemas/Error"
     '401':
       description: Sesión/token inválido
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/Error"
+    '403':
+      description: Origen de mutación no permitido por el BFF
       content:
         application/json:
           schema:
@@ -764,6 +1036,192 @@ components:
           example: ACC-002
         label:
           type: string
+    PaymentLinkStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - PAID
+      - CANCELLED
+      - EXPIRED
+    CreatePaymentLink:
+      type: object
+      additionalProperties: false
+      required:
+      - destinationAccountId
+      - amount
+      - currency
+      properties:
+        destinationAccountId:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,2})?$"
+          example: '1250.25'
+        currency:
+          type: string
+          enum:
+          - COP
+    PaymentLinkDestination:
+      type: object
+      additionalProperties: false
+      required:
+      - accountId
+      - code
+      - label
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 3
+          maxLength: 64
+          example: ACC-001
+        label:
+          type: string
+    PaymentLinkCheckoutDestination:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - label
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 64
+          example: ACC-001
+        label:
+          type: string
+    PaymentLink:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - destination
+      - amount
+      - currency
+      - status
+      - expiresAt
+      - paidTransferId
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        destination:
+          "$ref": "#/components/schemas/PaymentLinkDestination"
+        amount:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$"
+          example: '1250.25'
+        currency:
+          type: string
+          enum:
+          - COP
+        status:
+          "$ref": "#/components/schemas/PaymentLinkStatus"
+        expiresAt:
+          type: string
+          format: date-time
+        paidTransferId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PaymentLinkPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PaymentLink"
+        nextCursor:
+          type: string
+          nullable: true
+    PaymentLinkShareToken:
+      type: object
+      additionalProperties: false
+      required:
+      - token
+      properties:
+        token:
+          type: string
+          minLength: 84
+          maxLength: 84
+          pattern: "^pl1\\.[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.[A-Za-z0-9_-]{43}$"
+    ResolvePaymentLink:
+      type: object
+      additionalProperties: false
+      required:
+      - token
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 256
+    PaymentLinkCheckout:
+      type: object
+      additionalProperties: false
+      required:
+      - linkId
+      - destination
+      - amount
+      - currency
+      - expiresAt
+      properties:
+        linkId:
+          type: string
+          format: uuid
+        destination:
+          "$ref": "#/components/schemas/PaymentLinkCheckoutDestination"
+        amount:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$"
+          example: '1250.25'
+        currency:
+          type: string
+          enum:
+          - COP
+        expiresAt:
+          type: string
+          format: date-time
+    PayPaymentLink:
+      type: object
+      additionalProperties: false
+      required:
+      - token
+      - sourceAccountId
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 256
+        sourceAccountId:
+          type: string
+          format: uuid
+    PaymentLinkPayment:
+      type: object
+      additionalProperties: false
+      required:
+      - paymentLink
+      - transfer
+      properties:
+        paymentLink:
+          "$ref": "#/components/schemas/PaymentLink"
+        transfer:
+          "$ref": "#/components/schemas/Transfer"
     CreateTransfer:
       type: object
       additionalProperties: false
@@ -848,6 +1306,8 @@ components:
       required:
       - id
       - sourceAccountId
+      - origin
+      - paymentLinkId
       - destination
       - amount
       - currency
@@ -863,6 +1323,15 @@ components:
         sourceAccountId:
           type: string
           format: uuid
+        origin:
+          type: string
+          enum:
+          - DIRECT
+          - PAYMENT_LINK
+        paymentLinkId:
+          type: string
+          format: uuid
+          nullable: true
         destination:
           "$ref": "#/components/schemas/Beneficiary"
         amount:

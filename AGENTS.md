@@ -73,6 +73,8 @@ Las carpetas de aplicaciones son objetivo, no evidencia de implementación. No g
 - Conciliar antes de reenviar tras caída/timeout. GET 404 no autoriza liberar: reenviar con la misma reference idempotente. Nunca generar otra reference por un timeout.
 - Solo reverso total de COMPLETED y por propietario del origen. Máximo un reverso activo/exitoso. Interno sin disponible del destinatario → conflicto; externo acredita solo cuando banco confirma.
 - Outbox publica con mandatory, persistent y confirms; consumidor ack después del commit. eventId deduplica. No prometer exactly-once de red ni descartar eventos al superar reintentos.
+- Link de cobro: payments, interno COP, monto fijo, un uso y 24 h. No reserva al crear. Pago bloquea link/cuentas y compromete PAID, transferencia COMPLETED, ledger, outbox e idempotencia en una TX; `transfers.payment_link_id` único impide doble cobro.
+- Token QR `pl1` firmado HMAC, derivado y no persistido. ACTIVE se resuelve solo con JWT + posesión; después de PAID solo creador/pagador consultan y terceros reciben 404. No guardar token en DB, snapshots, logs, eventos ni storage browser.
 
 ## 7. Auth, frontend y configuración
 
@@ -84,6 +86,7 @@ Las carpetas de aplicaciones son objetivo, no evidencia de implementación. No g
 - Un .env raíz ignorado, .env.example sin secretos reales. Compose inyecta solo variables necesarias; no compartir todas las credenciales con todos los servicios ni usar NEXT_PUBLIC_ para secretos.
 - Migrations explícitas, synchronize false, seeds idempotentes; nunca resetear datos al arrancar ni down -v en VPS.
 - Logs sin passwords/tokens/keys/DSNs; IDs de correlación para rastrear operación/evento.
+- QR contiene `${APP_ORIGIN}/pay#<token>`; web elimina el fragmento y mantiene token solo en memoria. Login inline preserva la intención sin localStorage/sessionStorage. Copiar link y descargar PNG son alternativas accesibles al escaneo.
 
 ## 8. SDD, pruebas, verificación y entrega
 

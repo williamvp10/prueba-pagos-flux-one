@@ -8,6 +8,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { ApiError } from "@fluxone/backend-kit";
 import {
   Account,
+  PaymentLink,
+  PaymentLinkReader,
   Transfer,
   Reversal,
   Transaction,
@@ -32,12 +34,28 @@ const account = (r: any): Account => ({
   balance: BigInt(r.balance_minor),
   reserved: BigInt(r.reserved_minor),
 });
+const paymentLink = (r: any): PaymentLink => ({
+  id: r.id,
+  creator: r.creator_id,
+  destinationAccount: r.destination_account_id,
+  amount: BigInt(r.amount_minor),
+  status: r.effective_status ?? r.status,
+  payer: r.payer_id,
+  paidTransferId: r.paid_transfer_id ?? null,
+  expiresAt: new Date(r.expires_at).toISOString(),
+  cancelledAt: r.cancelled_at ? new Date(r.cancelled_at).toISOString() : null,
+  paidAt: r.paid_at ? new Date(r.paid_at).toISOString() : null,
+  createdAt: new Date(r.created_at).toISOString(),
+  updatedAt: new Date(r.updated_at).toISOString(),
+  correlation: r.correlation_id,
+});
 export const transfer = (r: any): Transfer => ({
   id: r.id,
   actor: r.actor_id,
   source: r.source_id,
   kind: r.destination_kind,
   destination: r.destination_code,
+  paymentLinkId: r.payment_link_id ?? null,
   amount: BigInt(r.amount_minor),
   status: r.status,
   sequence: r.sequence,
@@ -76,6 +94,39 @@ export class PaymentsMigration1792073600001 implements MigrationInterface {
     await q.query(
       "DROP TABLE outbox_events,idempotency_records,ledger_entries,reversals,transfers,external_beneficiaries,accounts",
     );
+  }
+}
+export class PaymentLinksMigration1792073600002 implements MigrationInterface {
+  async up(q: QueryRunner) {
+    await q.query(`
+      CREATE TABLE payment_links(
+        id uuid PRIMARY KEY,
+        creator_id uuid NOT NULL,
+        destination_account_id uuid NOT NULL REFERENCES accounts(id),
+        amount_minor bigint NOT NULL CHECK(amount_minor>0 AND amount_minor<=99999999999999),
+        status text NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE','PAID','CANCELLED','EXPIRED')),
+        payer_id uuid,
+        expires_at timestamptz NOT NULL,
+        cancelled_at timestamptz,
+        paid_at timestamptz,
+        correlation_id text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        CHECK((status='PAID' AND payer_id IS NOT NULL AND paid_at IS NOT NULL) OR (status<>'PAID' AND payer_id IS NULL AND paid_at IS NULL)),
+        CHECK((status='CANCELLED' AND cancelled_at IS NOT NULL) OR (status<>'CANCELLED' AND cancelled_at IS NULL))
+      );
+      CREATE INDEX payment_link_history ON payment_links(creator_id,created_at DESC,id DESC);
+      CREATE INDEX payment_link_expiry ON payment_links(status,expires_at);
+      ALTER TABLE transfers ADD COLUMN payment_link_id uuid REFERENCES payment_links(id);
+      CREATE UNIQUE INDEX one_transfer_per_payment_link ON transfers(payment_link_id) WHERE payment_link_id IS NOT NULL;
+    `);
+  }
+  async down(q: QueryRunner) {
+    await q.query(`
+      DROP INDEX one_transfer_per_payment_link;
+      ALTER TABLE transfers DROP COLUMN payment_link_id;
+      DROP TABLE payment_links;
+    `);
   }
 }
 export class PgTransaction implements Transaction {
@@ -146,7 +197,7 @@ export class PgTransaction implements Transaction {
   }
   async insertTransfer(t: Transfer) {
     await this.m.query(
-      "INSERT INTO transfers(id,actor_id,source_id,destination_kind,destination_code,amount_minor,status,bank_reference,correlation_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+      "INSERT INTO transfers(id,actor_id,source_id,destination_kind,destination_code,amount_minor,status,bank_reference,correlation_id,payment_link_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
       [
         t.id,
         t.actor,
@@ -157,6 +208,7 @@ export class PgTransaction implements Transaction {
         t.status,
         t.bankRef,
         t.correlation,
+        t.paymentLinkId ?? null,
       ],
     );
   }
@@ -226,6 +278,7 @@ export class PgTransaction implements Transaction {
         amount: money(t.amount),
         currency: "COP",
         sourceAccountId: t.source,
+        ...(t.paymentLinkId ? { paymentLinkId: t.paymentLinkId } : {}),
         destinationKind: t.kind,
         destinationCode: t.destination,
         reversalId: r?.id ?? null,
@@ -236,6 +289,36 @@ export class PgTransaction implements Transaction {
       "INSERT INTO outbox_events(event_id,transfer_id,sequence,payload) VALUES($1,$2,$3,$4)",
       [event.eventId, t.id, t.sequence, event],
     );
+  }
+  async paymentLink(id: string, lock = false): Promise<PaymentLink | null> {
+    const [row] = await this.m.query(
+      `SELECT * FROM payment_links WHERE id=$1${lock ? " FOR UPDATE" : ""}`,
+      [id],
+    );
+    return row ? paymentLink(row) : null;
+  }
+  async insertPaymentLink(link: PaymentLink) {
+    await this.m.query(
+      "INSERT INTO payment_links(id,creator_id,destination_account_id,amount_minor,status,expires_at,correlation_id) VALUES($1,$2,$3,$4,$5,$6,$7)",
+      [
+        link.id,
+        link.creator,
+        link.destinationAccount,
+        link.amount.toString(),
+        link.status,
+        link.expiresAt,
+        link.correlation,
+      ],
+    );
+  }
+  async updatePaymentLink(link: PaymentLink) {
+    const [row] = updatedRows(
+      await this.m.query(
+        "UPDATE payment_links SET status=$2,payer_id=$3,paid_at=$4,cancelled_at=$5,updated_at=now() WHERE id=$1 RETURNING updated_at",
+        [link.id, link.status, link.payer, link.paidAt, link.cancelledAt],
+      ),
+    );
+    link.updatedAt = new Date(row.updated_at).toISOString();
   }
 }
 export class PgUnitOfWork implements UnitOfWork {
@@ -253,7 +336,7 @@ export class PgUnitOfWork implements UnitOfWork {
     }
   }
 }
-export class PgQueries {
+export class PgQueries implements PaymentLinkReader {
   constructor(private db: DataSource) {}
   async accounts(actor: string) {
     return (
@@ -286,6 +369,96 @@ export class PgQueries {
         "SELECT code,label,'EXTERNAL' AS kind FROM external_beneficiaries ORDER BY code",
       )),
     ];
+  }
+  private async paymentLinkRow(id: string) {
+    const [row] = await this.db.query(
+      `SELECT pl.*,CASE WHEN pl.status='ACTIVE' AND pl.expires_at<=now() THEN 'EXPIRED' ELSE pl.status END AS effective_status,t.id AS paid_transfer_id,d.code AS destination_code FROM payment_links pl LEFT JOIN transfers t ON t.payment_link_id=pl.id JOIN accounts d ON d.id=pl.destination_account_id WHERE pl.id=$1`,
+      [id],
+    );
+    return row ? paymentLink(row) : null;
+  }
+  async getForCreator(actor: string, id: string) {
+    const [row] = await this.db.query(
+      `SELECT pl.*,CASE WHEN pl.status='ACTIVE' AND pl.expires_at<=now() THEN 'EXPIRED' ELSE pl.status END AS effective_status,t.id AS paid_transfer_id,d.code AS destination_code FROM payment_links pl LEFT JOIN transfers t ON t.payment_link_id=pl.id JOIN accounts d ON d.id=pl.destination_account_id WHERE pl.id=$1 AND pl.creator_id=$2`,
+      [id, actor],
+    );
+    return row
+      ? { link: paymentLink(row), destinationCode: row.destination_code }
+      : null;
+  }
+  async resolve(id: string) {
+    const link = await this.paymentLinkRow(id);
+    if (!link || link.status !== "ACTIVE")
+      throw new ApiError(404, "RESOURCE_NOT_FOUND");
+    const destination = await this.db.query(
+      "SELECT code FROM accounts WHERE id=$1",
+      [link.destinationAccount],
+    );
+    const accountRow = destination[0];
+    if (!accountRow) throw new ApiError(404, "RESOURCE_NOT_FOUND");
+    return {
+      linkId: link.id,
+      destination: { code: accountRow.code, label: accountRow.code },
+      amount: money(link.amount),
+      currency: "COP" as const,
+      expiresAt: link.expiresAt,
+    };
+  }
+  async get(actor: string, id: string) {
+    const [row] = await this.db.query(
+      `SELECT pl.*,CASE WHEN pl.status='ACTIVE' AND pl.expires_at<=now() THEN 'EXPIRED' ELSE pl.status END AS effective_status,t.id AS paid_transfer_id,d.code AS destination_code FROM payment_links pl LEFT JOIN transfers t ON t.payment_link_id=pl.id JOIN accounts d ON d.id=pl.destination_account_id WHERE pl.id=$1 AND (pl.creator_id=$2 OR (pl.status='PAID' AND pl.payer_id=$2))`,
+      [id, actor],
+    );
+    if (!row) throw new ApiError(404, "RESOURCE_NOT_FOUND");
+    return {
+      link: paymentLink(row),
+      destinationCode: row.destination_code,
+    };
+  }
+  async list(
+    actor: string,
+    limit: number,
+    status?: string,
+    cursor?: string,
+  ) {
+    let c: any = null;
+    if (cursor) {
+      try {
+        c = JSON.parse(Buffer.from(cursor, "base64url").toString());
+        if (
+          c.status !== (status ?? null) ||
+          typeof c.date !== "string" ||
+          !Number.isFinite(Date.parse(c.date)) ||
+          !String(c.id).match(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+        )
+          throw Error();
+      } catch {
+        throw new ApiError(422, "VALIDATION_ERROR");
+      }
+    }
+    const rows = await this.db.query(
+      `SELECT pl.*,CASE WHEN pl.status='ACTIVE' AND pl.expires_at<=now() THEN 'EXPIRED' ELSE pl.status END AS effective_status,t.id AS paid_transfer_id,d.code AS destination_code,pl.created_at::text AS cursor_date FROM payment_links pl LEFT JOIN transfers t ON t.payment_link_id=pl.id JOIN accounts d ON d.id=pl.destination_account_id WHERE pl.creator_id=$1 AND ($2::text IS NULL OR (CASE WHEN pl.status='ACTIVE' AND pl.expires_at<=now() THEN 'EXPIRED' ELSE pl.status END)=$2) AND ($3::timestamptz IS NULL OR (pl.created_at,pl.id)<($3::timestamptz,$4::uuid)) ORDER BY pl.created_at DESC,pl.id DESC LIMIT $5`,
+      [actor, status ?? null, c?.date ?? null, c?.id ?? null, limit + 1],
+    );
+    const more = rows.length > limit;
+    const selected = rows.slice(0, limit);
+    const items = selected.map((row: any) => ({
+      link: paymentLink(row),
+      destinationCode: row.destination_code,
+    }));
+    const last = selected.at(-1);
+    return {
+      items,
+      nextCursor: more
+        ? Buffer.from(
+            JSON.stringify({
+              date: last.cursor_date,
+              id: last.id,
+              status: status ?? null,
+            }),
+          ).toString("base64url")
+        : null,
+    };
   }
   async detail(actor: string, id: string) {
     return this.db.transaction(async (m) => {

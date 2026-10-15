@@ -8,10 +8,10 @@ Mismo repositorio y checkout, con propiedad exclusiva por rutas. Main sigue sien
 |---|---|---|---|
 | Tooling/contexto y coordinación | Chat coordinador | AGENTS.md, tools/**, .codex/**, docs centrales | Graphify y reglas implementados; evidencia en docs/verification.md |
 | Monorepo e infraestructura | Chat coordinador | manifests raíz, lockfile, infra/**, Compose, .env.example | Implementado; backend Compose verificado |
-| Pagos y contratos compartidos | Chat coordinador | apps/payments/**, packages/**, contratos y specs | Core implementado; integración Compose con mock verificada para aceptación y reverso externo; ampliar escenarios de rechazo/timeouts |
+| Pagos y contratos compartidos | Chat coordinador | apps/payments/**, packages/**, contratos y specs | Core base implementado; spec/contrato de links QR pertenece al coordinador y su backend queda como siguiente bloque |
 | Mock bancario | Agente auxiliar externo; coordinador integrador | apps/rail-mock/** y docs/handoffs/rail-mock.md | Integrado en main; persistencia SQLite y 8 pruebas locales |
 | Auth y audit | Chat coordinador | apps/auth/**, apps/audit/** | Implementados, Swagger y health verificados |
-| Frontend y BFF | Segundo agente auxiliar; coordinador integrador | apps/web/** y docs/handoffs/frontend.md | Integrado en main; typecheck, pruebas y build de producción aprobados |
+| Frontend y BFF | Segundo agente auxiliar; coordinador integrador | apps/web/** y docs/handoffs/frontend.md | Base integrada; nueva tarea de links QR se ejecuta con `docs/prompts/payment-links-frontend-agent.md` |
 
 Los dos auxiliares entregaron ramas cortas desde `d15a9f5`; el coordinador registró commits en cada rama y los integró en `main` como `e6462b9` y `8d0931b`. El cherry-pick del frontend requirió conservar su handoff actualizado. Ambas ramas quedaron limpias tras el commit; el estado final de tests e integración figura en README y verification.
 
@@ -46,6 +46,8 @@ Si surge una necesidad compartida, dejar propuesta concreta en handoff y continu
 El auxiliar frontend posee apps/web y su handoff. Cliente compartido @fluxone/api-client lo genera el coordinador; exports tipados ServicePaths/ServiceComponents y BrowserPaths/BrowserComponents. APIs privadas configuradas con AUTH_API_URL/PAYMENTS_API_URL/AUDIT_API_URL (base /api/v1). El coordinador no crea ni reformatea apps/web mientras el auxiliar esté activo.
 
 Swagger es responsabilidad del backend: cada servicio sirve /docs y /docs-json con su subconjunto del OpenAPI autoritativo; no regenerar contrato desde decorators como fuente. Frontend no debe crear Swagger alternativo.
+
+Para la iteración de links QR, el auxiliar frontend implementa solamente UI/BFF contra `docs/browser.openapi.yaml`: rutas `/payment-links`, `/payment-links/{id}` y `/pay`, whitelist del proxy, manejo de token en fragmento/memoria y pruebas web. No edita OpenAPI, schemas de evento, documentación central, cliente generado, infraestructura ni payments. Si necesita `qrcode`, lo declara en `apps/web/package.json`, no ejecuta install y registra la solicitud en el handoff. El coordinador regenera `@fluxone/api-client`, instala y verifica integración.
 
 ## Backend disponible para integrar
 

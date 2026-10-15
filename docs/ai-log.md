@@ -49,3 +49,11 @@ La integración encontró un `COPY src` incompatible con el contexto raíz de Co
 ## Cobertura unitaria de reglas de pago
 
 Ante la solicitud del usuario de ampliar pruebas de reglas de negocio, se agregaron ocho casos unitarios para la liquidación de transferencias y reversos externos (aceptado, rechazado, indisponible e incierto), y dos casos de límites exactos para saldo disponible y crédito máximo. Los tests usan el runner integrado `node:test` y `node:assert/strict`; no se añadieron dependencias. `pnpm test:unit` pasó con 13/13 pruebas de Payments. `pnpm test:all` pasó también: Payments 13 unitarias + 13 integración/configuración, rail-mock 8, frontend 3, typecheck y build de producción. La suite de transición usa un `Transaction` fake para comprobar decisiones y efectos solicitados; PostgreSQL/RabbitMQ siguen cubriendo los comportamientos transaccionales y de integración.
+
+## Especificación SDD de links de cobro QR
+
+El usuario decidió incorporar links de cobro en payments y delegar la implementación frontend a otro agente. En conversación se cerraron estas decisiones humanas: pagador registrado en Flux One, cualquier usuario autenticado con posesión del QR puede ver/pagar mientras ACTIVE, resumen previo limitado a monto y cuenta receptora, un uso, vigencia fija de 24 horas, cancelación previa y auditoría solo de la transferencia financiera.
+
+El agente convirtió esas decisiones en LINK-01..08 y UI-06..09, contratos OpenAPI privado/browser, modelo DBML, arquitectura, trazabilidad y prompt aislado para frontend. Se eligió token versionado HMAC derivable y no persistido, transportado en fragmento URL y memoria del browser, para que snapshots idempotentes y base de datos no almacenen el secreto compartible.
+
+En la fase actual, a petición del usuario, se implementó Payments: migración aditiva, firma HMAC, aplicación transaccional/controladores, aislamiento posterior al pago, eventos con `paymentLinkId` y configuración del secreto. Se conservaron intactos los cambios frontend concurrentes y el whitespace preexistente en `payments.ts`. `pnpm test` pasó con 15 unitarias y 15 pruebas de integración/configuración; LINK-01..08 quedaron evidenciados en `traceability.md`. No se afirma verificación visual de UI ni rollback inyectado específico para un fallo link después de ledger.

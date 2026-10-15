@@ -8,12 +8,15 @@ import {
 import { DataSource } from "typeorm";
 import {
   database,
+  env,
   HealthController,
   JwtGuard,
   launch,
 } from "@fluxone/backend-kit";
 import { Payments } from "../application/payments";
+import { PaymentLinks } from "../application/payment-links";
 import { PgQueries, PgUnitOfWork, ids } from "../infrastructure/store";
+import { HmacPaymentLinkSigner } from "../infrastructure/payment-link-token";
 import { PaymentsController } from "../infrastructure/http";
 import { PaymentWorkers } from "../infrastructure/workers";
 import { HttpBank } from "../infrastructure/bank";
@@ -48,6 +51,17 @@ class Lifecycle implements OnModuleInit, OnModuleDestroy {
       provide: PgQueries,
       inject: [DataSource],
       useFactory: (db: DataSource) => new PgQueries(db),
+    },
+    {
+      provide: PaymentLinks,
+      inject: [DataSource, PgQueries],
+      useFactory: (db: DataSource, queries: PgQueries) =>
+        new PaymentLinks(
+          new PgUnitOfWork(db),
+          ids,
+          new HmacPaymentLinkSigner(env("PAYMENT_LINK_SIGNING_SECRET")),
+          queries,
+        ),
     },
   ],
 })

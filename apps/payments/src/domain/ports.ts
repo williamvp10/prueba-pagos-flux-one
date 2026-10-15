@@ -12,12 +12,29 @@ export type Account = {
   balance: bigint;
   reserved: bigint;
 };
+export type PaymentLinkStatus = "ACTIVE" | "PAID" | "CANCELLED" | "EXPIRED";
+export type PaymentLink = {
+  id: string;
+  creator: string;
+  destinationAccount: string;
+  amount: bigint;
+  status: PaymentLinkStatus;
+  payer: string | null;
+  paidTransferId: string | null;
+  expiresAt: string;
+  cancelledAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  correlation: string;
+};
 export type Transfer = {
   id: string;
   actor: string;
   source: string;
   kind: "INTERNAL" | "EXTERNAL";
   destination: string;
+  paymentLinkId?: string | null;
   amount: bigint;
   status: State;
   sequence: number;
@@ -74,6 +91,9 @@ export interface Transaction {
     reversalId?: string,
   ): Promise<void>;
   event(t: Transfer, type: string, r?: Reversal): Promise<void>;
+  paymentLink(id: string, lock?: boolean): Promise<PaymentLink | null>;
+  insertPaymentLink(link: PaymentLink): Promise<void>;
+  updatePaymentLink(link: PaymentLink): Promise<void>;
 }
 export interface UnitOfWork {
   run<T>(callback: (tx: Transaction) => Promise<T>): Promise<T>;
@@ -82,6 +102,35 @@ export interface Identifiers {
   uuid(): string;
   hash(payload: unknown): string;
   now(): string;
+}
+export interface PaymentLinkSigner {
+  issue(linkId: string): string;
+  verify(token: string): string | null;
+}
+export type PaymentLinkSummary = {
+  link: PaymentLink;
+  destinationCode: string;
+};
+export type PaymentLinkCheckout = {
+  linkId: string;
+  destination: { code: string; label: string };
+  amount: string;
+  currency: "COP";
+  expiresAt: string;
+};
+export interface PaymentLinkReader {
+  get(actor: string, id: string): Promise<PaymentLinkSummary>;
+  getForCreator(
+    actor: string,
+    id: string,
+  ): Promise<PaymentLinkSummary | null>;
+  resolve(id: string): Promise<PaymentLinkCheckout>;
+  list(
+    actor: string,
+    limit: number,
+    status?: string,
+    cursor?: string,
+  ): Promise<{ items: PaymentLinkSummary[]; nextCursor: string | null }>;
 }
 
 export type BankResult =

@@ -12,6 +12,7 @@
     "amount": "1250.25",
     "currency": "COP",
     "sourceAccountId": "44444444-4444-4444-8444-444444444444",
+    "paymentLinkId": null,
     "destinationKind": "EXTERNAL",
     "destinationCode": "EXT-001",
     "reversalId": null,

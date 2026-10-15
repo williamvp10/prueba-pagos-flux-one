@@ -447,6 +447,292 @@ test("[PAY-05] independent concurrent payments cannot overspend", async () => {
     "100000.00",
   );
 });
+test("[LINK-01][LINK-02][LINK-03][LINK-04][LINK-05][LINK-07] private QR link payment is single-use and participant-only", async () => {
+  const createKey = randomUUID();
+  const made = await api("payments", "/payment-links", {
+    token: a.accessToken,
+    method: "POST",
+    key: createKey,
+    body: {
+      destinationAccountId: source.id,
+      amount: "25.50",
+      currency: "COP",
+    },
+  });
+  assert.equal(made.status, 201);
+  assert.equal(made.body.status, "ACTIVE");
+  const replay = await api("payments", "/payment-links", {
+    token: a.accessToken,
+    method: "POST",
+    key: createKey,
+    body: {
+      destinationAccountId: source.id,
+      amount: "25.5",
+      currency: "COP",
+    },
+  });
+  assert.equal(replay.status, 201);
+  assert.equal(replay.body.id, made.body.id);
+  assert.equal(replay.body.token, undefined, "idempotency snapshots never contain the share token");
+  assert.equal(
+    Date.parse(made.body.expiresAt) - Date.parse(made.body.createdAt),
+    24 * 60 * 60 * 1000,
+  );
+  const creatorPage = await api("payments", "/payment-links?status=ACTIVE", {
+    token: a.accessToken,
+  });
+  assert.ok(creatorPage.body.items.some((item) => item.id === made.body.id));
+  assert.equal(
+    (await api("payments", "/payment-links", { token: b.accessToken })).body.items.length,
+    0,
+  );
+  assert.equal(
+    (await api("payments", `/payment-links/${made.body.id}`, { token: b.accessToken })).status,
+    404,
+  );
+  assert.equal(
+    (
+      await api("payments", "/payment-links", {
+        token: a.accessToken,
+        method: "POST",
+        key: randomUUID(),
+        body: {
+          destinationAccountId: other.id,
+          amount: "25.50",
+          currency: "COP",
+        },
+      })
+    ).status,
+    404,
+    "a creator cannot route a link to another user's account",
+  );
+  const token = (
+    await api("payments", `/payment-links/${made.body.id}/share-token`, {
+      token: a.accessToken,
+    })
+  ).body.token;
+  assert.equal(token.length, 84);
+  assert.equal(
+    (await api("payments", `/payment-links/${made.body.id}/share-token`, { token: b.accessToken })).status,
+    404,
+  );
+  assert.equal(
+    (
+      await api("payments", "/payment-links/resolve", {
+        method: "POST",
+        body: { token },
+      })
+    ).status,
+    401,
+  );
+  assert.equal(
+    (
+      await api("payments", "/payment-links/resolve", {
+        token: b.accessToken,
+        method: "POST",
+        body: { token },
+      })
+    ).body.amount,
+    "25.50",
+  );
+  const invalidKey = randomUUID();
+  assert.equal(
+    (
+      await api("payments", "/payment-links/pay", {
+        token: b.accessToken,
+        method: "POST",
+        key: invalidKey,
+        body: { token: token.slice(0, -1) + (token.endsWith("A") ? "B" : "A"), sourceAccountId: other.id },
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    Number(
+      (
+        await db.query("SELECT count(*) n FROM idempotency_records WHERE key=$1", [invalidKey])
+      )[0].n,
+    ),
+    0,
+    "invalid signatures do not consume idempotency keys",
+  );
+  const results = await Promise.all(
+    Array.from({ length: 20 }, () =>
+      api("payments", "/payment-links/pay", {
+        token: b.accessToken,
+        method: "POST",
+        key: randomUUID(),
+        body: { token, sourceAccountId: other.id },
+      }),
+    ),
+  );
+  assert.deepEqual(
+    results.map((result) => result.status).sort(),
+    [...Array(19).fill(409), 201].sort(),
+  );
+  const paid = results.find((result) => result.status === 201).body;
+  assert.equal(paid.paymentLink.status, "PAID");
+  assert.equal(paid.transfer.origin, "PAYMENT_LINK");
+  assert.equal(paid.transfer.paymentLinkId, made.body.id);
+  const [eventRows] = await db.query(
+    "SELECT count(*) n FROM outbox_events WHERE transfer_id=$1 AND payload->'data'->>'paymentLinkId'=$2",
+    [paid.transfer.id, made.body.id],
+  );
+  assert.equal(Number(eventRows.n), 2, "created and completed financial events identify the link");
+  const [ledgerRows] = await db.query(
+    "SELECT count(*) n FROM ledger_entries WHERE transfer_id=$1",
+    [paid.transfer.id],
+  );
+  assert.equal(Number(ledgerRows.n), 2);
+  const [transferRows] = await db.query(
+    "SELECT count(*) n FROM transfers WHERE payment_link_id=$1",
+    [made.body.id],
+  );
+  assert.equal(Number(transferRows.n), 1);
+  assert.equal(
+    (
+      await api("payments", `/payment-links/${made.body.id}`, {
+        token: a.accessToken,
+      })
+    ).body.paidTransferId,
+    paid.transfer.id,
+  );
+  assert.equal(
+    (
+      await api("payments", `/payment-links/${made.body.id}`, {
+        token: b.accessToken,
+      })
+    ).body.status,
+    "PAID",
+  );
+  assert.equal(
+    (
+      await api("payments", `/payment-links/${made.body.id}`, {
+        token: c.accessToken,
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await api("payments", `/transfers/${paid.transfer.id}`, {
+        token: a.accessToken,
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await api("payments", `/transfers/${paid.transfer.id}`, {
+        token: b.accessToken,
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await api("payments", `/transfers/${paid.transfer.id}`, {
+        token: c.accessToken,
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await api("payments", "/payment-links/resolve", {
+        token: b.accessToken,
+        method: "POST",
+        body: { token },
+      })
+    ).status,
+    404,
+    "paid links no longer resolve for third parties",
+  );
+  const reversal = await api("payments", `/transfers/${paid.transfer.id}/reversals`, {
+    token: b.accessToken,
+    method: "POST",
+    key: randomUUID(),
+  });
+  assert.equal(reversal.status, 201);
+  assert.equal(
+    (await api("payments", `/transfers/${paid.transfer.id}`, { token: b.accessToken })).body.status,
+    "REVERSED",
+  );
+});
+test("[LINK-06][LINK-08] cancellation is idempotent and expiration is persisted when attempted", async () => {
+  const insufficientLink = await api("payments", "/payment-links", {
+    token: a.accessToken,
+    method: "POST",
+    key: randomUUID(),
+    body: { destinationAccountId: source.id, amount: "999999999999.99", currency: "COP" },
+  });
+  const insufficientToken = (
+    await api("payments", `/payment-links/${insufficientLink.body.id}/share-token`, {
+      token: a.accessToken,
+    })
+  ).body.token;
+  const beforeFailure = (await api("payments", "/accounts", { token: c.accessToken })).body[0].available;
+  const failedPayment = await api("payments", "/payment-links/pay", {
+    token: c.accessToken,
+    method: "POST",
+    key: randomUUID(),
+    body: { token: insufficientToken, sourceAccountId: target.id },
+  });
+  assert.equal(failedPayment.status, 409);
+  assert.equal(failedPayment.body.code, "INSUFFICIENT_FUNDS");
+  assert.equal((await api("payments", "/accounts", { token: c.accessToken })).body[0].available, beforeFailure);
+  assert.equal((await api("payments", `/payment-links/${insufficientLink.body.id}`, { token: a.accessToken })).body.status, "ACTIVE");
+
+  const cancelled = await api("payments", "/payment-links", {
+    token: a.accessToken,
+    method: "POST",
+    key: randomUUID(),
+    body: { destinationAccountId: source.id, amount: "1.00", currency: "COP" },
+  });
+  const cancelledOnce = await api(
+    "payments",
+    `/payment-links/${cancelled.body.id}/cancel`,
+    { token: a.accessToken, method: "POST", key: randomUUID() },
+  );
+  assert.equal(cancelledOnce.status, 200);
+  assert.equal(cancelledOnce.body.status, "CANCELLED");
+  assert.equal(
+    (
+      await api("payments", `/payment-links/${cancelled.body.id}/cancel`, {
+        token: a.accessToken,
+        method: "POST",
+        key: randomUUID(),
+      })
+    ).body.status,
+    "CANCELLED",
+  );
+
+  const expired = await api("payments", "/payment-links", {
+    token: a.accessToken,
+    method: "POST",
+    key: randomUUID(),
+    body: { destinationAccountId: source.id, amount: "1.00", currency: "COP" },
+  });
+  const expiredToken = (
+    await api("payments", `/payment-links/${expired.body.id}/share-token`, {
+      token: a.accessToken,
+    })
+  ).body.token;
+  await db.query("UPDATE payment_links SET expires_at=now()-interval '1 second' WHERE id=$1", [expired.body.id]);
+  const result = await api("payments", "/payment-links/pay", {
+    token: b.accessToken,
+    method: "POST",
+    key: randomUUID(),
+    body: {
+      token: expiredToken,
+      sourceAccountId: other.id,
+    },
+  });
+  assert.equal(result.status, 409);
+  assert.equal(result.body.code, "PAYMENT_LINK_EXPIRED");
+  const [row] = await db.query("SELECT status FROM payment_links WHERE id=$1", [expired.body.id]);
+  assert.equal(row.status, "EXPIRED");
+});
 test("[REV-01][REV-03][REV-04] concurrent reversals compensate exactly once", async () => {
   const made = await api("payments", "/transfers", {
     token: a.accessToken,

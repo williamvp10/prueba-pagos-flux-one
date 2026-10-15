@@ -4,12 +4,14 @@ Estado: aprobada para implementación; evidencia pendiente. Fuente: PDF de la pr
 
 ## Alcance y vocabulario
 
-- Tres microservicios de negocio, frontend y riel simulado. Sin payment links en v1.
+- Tres microservicios de negocio, frontend y riel simulado. Los links de cobro viven en payments y reutilizan transferencias internas; no constituyen un cuarto microservicio ni amplían el riel bancario.
 - Transferencia interna: entre cuentas registradas locales; externa: origen local y beneficiario del catálogo bancario mock.
 - `balance`: saldo contable; `reserved`: parte comprometida por externas pendientes; `available = balance - reserved`.
 - Una solicitud aceptada localmente no significa que el banco haya aceptado. UNKNOWN expresa incertidumbre, no fallo terminal.
 - Reverso total, iniciado por propietario del origen, con máximo un reverso activo o exitoso por transferencia.
 - Transferencias visibles a propietario del origen y destinatario interno. Auditoría usa el mismo permiso; solo origen puede reversar.
+- Link de cobro: solicitud interna de un solo uso, monto fijo COP y vigencia exacta de 24 horas. El creador elige una cuenta receptora propia; cualquier usuario Flux One autenticado que posea el QR puede consultar el resumen mínimo y pagar desde una cuenta propia mientras esté activo.
+- Antes del pago, posesión del QR más sesión válida define al posible pagador. Después del pago, solo creador y pagador efectivo pueden consultar link o transferencia; el token deja de resolver para terceros.
 
 ## Semántica transversal
 
@@ -178,6 +180,60 @@ Estado: aprobada para implementación; evidencia pendiente. Fuente: PDF de la pr
 - **Given:** una key con respuesta definitiva INSUFFICIENT_FUNDS guardada.
 - **When:** llega dinero y se reintenta con esa misma key.
 - **Then:** repite el error original; nueva intención requiere nueva key.
+
+### Links de cobro y QR — backend
+
+#### LINK-01 — Creación idempotente y destino propio
+
+- **Given:** usuario autenticado, cuenta receptora propia y monto COP válido.
+- **When:** crea un link con `Idempotency-Key`.
+- **Then:** responde 201 con un único link ACTIVE, vencimiento igual a `createdAt + 24 h`, monto exacto y sin reservar ni mover dinero; replay devuelve el mismo snapshot.
+- **And:** cuenta ajena o inexistente responde 404, y monto inválido responde 422 sin crear link.
+
+#### LINK-02 — Invitación firmada y divulgación mínima
+
+- **Given:** link ACTIVE y token `pl1.<linkId>.<firma>` emitido al creador.
+- **When:** un usuario Flux One autenticado resuelve el token.
+- **Then:** ve exclusivamente linkId, monto, COP, código/etiqueta receptora y vencimiento; nunca creador, email, saldos, historial ni IDs internos de cuenta.
+- **And:** token ausente, alterado, malformado o perteneciente a un link no activo responde 404 indistinguible; una petición sin sesión responde 401.
+
+#### LINK-03 — Pago interno atómico
+
+- **Given:** link ACTIVE no vencido, pagador autenticado y cuenta origen propia distinta del destino con capacidad suficiente.
+- **When:** paga con `Idempotency-Key`.
+- **Then:** en una transacción PostgreSQL bloquea link y cuentas, crea una transferencia interna COMPLETED vinculada al link, debita/acredita una vez, escribe dos movimientos, outbox y resultado idempotente, y marca el link PAID con el pagador.
+- **And:** responde 201 con link y transferencia; el riel externo no participa.
+
+#### LINK-04 — Carrera por link de un solo uso
+
+- **Given:** un link ACTIVE compartido con varios usuarios.
+- **When:** 20 pagos concurrentes usan keys distintas.
+- **Then:** exactamente uno completa; existe una sola transferencia por link y un solo par de movimientos/eventos. Los perdedores reciben 409 PAYMENT_LINK_ALREADY_PAID sin efectos financieros.
+
+#### LINK-05 — Cancelación y expiración
+
+- **Given:** link ACTIVE.
+- **When:** su creador lo cancela idempotentemente antes del pago.
+- **Then:** queda CANCELLED y no vuelve a resolverse ni pagarse; usuario ajeno recibe 404.
+- **And:** al cumplirse 24 horas se proyecta/persiste EXPIRED y el pago responde 409 PAYMENT_LINK_EXPIRED; cancelar un link PAID o EXPIRED responde 409 sin alterar la transferencia.
+
+#### LINK-06 — Error de negocio sin consumir el link
+
+- **Given:** link ACTIVE y token válido.
+- **When:** el pagador usa la cuenta receptora como origen, no tiene fondos o el crédito excedería el máximo.
+- **Then:** responde 422 SAME_ACCOUNT o 409 INSUFFICIENT_FUNDS/BALANCE_LIMIT_EXCEEDED, conserva ACTIVE y no deja transferencia, ledger ni outbox parcial; la key conserva ese resultado, una nueva intención usa otra key.
+
+#### LINK-07 — Privacidad después del pago
+
+- **Given:** link PAID y transferencia asociada.
+- **When:** creador, pagador u otro usuario consultan por ID o intentan resolver el token.
+- **Then:** creador y pagador pueden consultar el link y la transferencia; cualquier tercero recibe 404 y el endpoint de resolución ya no revela el resumen, incluso si conserva el QR.
+
+#### LINK-08 — Trazabilidad financiera y reverso
+
+- **Given:** pago completado desde un link.
+- **When:** se publica y consulta su auditoría o se solicita reverso.
+- **Then:** usa los eventos financieros existentes con `paymentLinkId` opcional; no publica eventos por visualizar/crear/cancelar el link. Solo el pagador, propietario del origen, puede solicitar el reverso total conforme a REV-01..09.
 
 ### Riel y transferencias externas
 
@@ -384,6 +440,32 @@ Estado: aprobada para implementación; evidencia pendiente. Fuente: PDF de la pr
 - **Given:** access token expirado y refresh válido o inválido.
 - **When:** UI consulta una API.
 - **Then:** renueva una sola vez mediante single-flight; si falla vuelve a login sin bucles ni reenvío con otra key.
+
+#### UI-06 — Crear, compartir y descargar QR
+
+- **Given:** usuario autenticado con cuenta propia.
+- **When:** crea un cobro válido.
+- **Then:** confirma monto/destino, conserva una key por intención, muestra estado ACTIVE y genera un QR con `${APP_ORIGIN}/pay#<token>`, además de acciones accesibles para copiar link y descargar PNG.
+- **And:** el token no se guarda en localStorage/sessionStorage ni aparece en una URL HTTP, analytics o logs.
+
+#### UI-07 — Abrir QR y autenticar sin perder intención
+
+- **Given:** browser abre `/pay#<token>` con o sin sesión.
+- **When:** la página lee el fragmento.
+- **Then:** lo elimina inmediatamente de la barra, lo mantiene solo en memoria y, si hace falta, ofrece login inline; después muestra únicamente monto, cuenta receptora y vencimiento.
+- **And:** recargar tras limpiar el fragmento exige escanear/abrir nuevamente el link, en vez de persistir el secreto.
+
+#### UI-08 — Confirmar y recuperar pago por link
+
+- **Given:** resumen resuelto y cuenta origen seleccionada.
+- **When:** el usuario confirma, hace doble clic o ocurre un error de red.
+- **Then:** hay un solo POST activo y una misma key/payload por intención; 201 navega a la transferencia, error técnico conserva reintento y error definitivo explica la recuperación sin mostrar éxito prematuro.
+
+#### UI-09 — Estados privados, responsive y accesibles
+
+- **Given:** link inválido, expirado, cancelado, pagado por otro o inaccesible.
+- **When:** se abre desde móvil/desktop, teclado o lector de pantalla.
+- **Then:** se presenta un estado genérico sin filtrar existencia/participantes, con foco visible, controles mínimos de 44 px, `role=alert`/`aria-live`, alternativa textual al QR y contraste AA en tema claro/oscuro/sistema.
 
 #### OPS-01 — Arranque limpio
 

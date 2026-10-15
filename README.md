@@ -51,6 +51,8 @@ Los puertos de desarrollo se enlazan a loopback. PostgreSQL y RabbitMQ no se exp
 
 Los contratos OpenAPI son la fuente compartida por el backend y el frontend. `docs/browser.openapi.yaml` define la API del BFF hacia el navegador; `docs/openapi.yaml` define las APIs privadas; `docs/rail.openapi.yaml` define los tres endpoints del mock bancario. NestJS sirve Swagger por servicio desde esos contratos.
 
+La siguiente iteración está especificada para links de cobro privados mediante QR: un usuario crea un cobro interno COP de un solo uso, otro usuario autenticado lo paga desde una cuenta propia y la transferencia resultante conserva ledger, idempotencia, outbox y autorización existentes. Los criterios y contratos ya están definidos; implementación/evidencia permanecen pendientes y no se anuncian como funcionalidad disponible todavía.
+
 ```sh
 pnpm contracts
 pnpm test
@@ -66,6 +68,7 @@ La última ejecución de `pnpm test:all` pasó: 13 tests unitarios de Payments, 
 | [Spec](docs/spec.md) | Reglas de negocio y criterios de aceptación |
 | [Arquitectura](docs/architecture.md) | Servicios, límites, comunicación y diagramas |
 | [Modelo de datos](docs/data-model.md) | Entidades, propiedad, transacciones e invariantes |
+| [Links de cobro QR](docs/payment-links.md) | Spec técnica backend/frontend, seguridad, estados, contratos y gates |
 | [API del navegador](docs/browser.openapi.yaml) | Contrato del portal/BFF con cookies HttpOnly |
 | [API de servicios](docs/openapi.yaml) | Contratos privados de Auth, Payments y Audit |
 | [API del riel](docs/rail.openapi.yaml) | Endpoints del banco simulado |

@@ -6,7 +6,7 @@
 |---|---|---|---|
 | web | UI, sesión browser, proxy HTTP del mismo origen | cookies HttpOnly; sin tablas | browser ↔ Next.js ↔ APIs |
 | auth | usuarios, passwords, sesiones/rotación | auth_schema | REST; emite JWT RS256 |
-| payments | cuentas, transferencias, reversos, ledger, idempotencia y outbox | payment_schema | REST, HTTP rail, AMQP |
+| payments | cuentas, links de cobro, transferencias, reversos, ledger, idempotencia y outbox | payment_schema | REST, HTTP rail, AMQP |
 | audit | consumo deduplicado y consultas autorizadas | audit_schema | AMQP y REST; consulta autorización en payments |
 | rail-mock | simular banco, deduplicar referencias y responder fallos | SQLite en volumen exclusivo | solo HTTP interno |
 | PostgreSQL | persistencia transaccional | tres esquemas/roles sin acceso cruzado | red privada |
@@ -52,7 +52,7 @@ flowchart TB
     Root --> Queue
 ```
 
-Las flechas sólidas representan dependencias. Infrastructure depende de application/domain; domain no conoce infraestructura. Puertos de payments: AccountsRepository, TransfersRepository, ReversalsRepository, IdempotencyStore, UnitOfWork, BankRail, OutboxStore, Clock e IdGenerator. El publicador consume outbox; no lo invocan transacciones de negocio.
+Las flechas sólidas representan dependencias. Infrastructure depende de application/domain; domain no conoce infraestructura. Puertos de payments: AccountsRepository, PaymentLinksRepository, TransfersRepository, ReversalsRepository, IdempotencyStore, UnitOfWork, BankRail, OutboxStore, Clock, IdGenerator y PaymentLinkSigner. El publicador consume outbox; no lo invocan transacciones de negocio. El signer es un puerto criptográfico; la aplicación no importa APIs de Node.
 
 ```text
 apps/
@@ -69,6 +69,45 @@ docs/
 ```
 
 DTO HTTP y entities TypeORM se mapean al dominio. UnitOfWork entrega repositorios asociados al mismo EntityManager transaccional: usar un repository global dentro del callback rompería atomicidad.
+
+## Link de cobro y QR
+
+El link es una invitación privada por posesión, no una transferencia pendiente ni una reserva. Vive en payments y solo puede liquidarse como transferencia interna. El QR se genera en el browser y contiene `${APP_ORIGIN}/pay#<token>`: el fragmento no viaja en requests HTTP ni en `Referer`. Payments emite/verifica `pl1.<linkId>.<HMAC-SHA256>` con un secreto exclusivo; no persiste el token. El BFF y el browser nunca conocen el secreto de firma.
+
+```mermaid
+sequenceDiagram
+    participant C as Cobrador
+    participant W as Web/BFF
+    participant P as Payments
+    participant DB as PostgreSQL pagos
+    participant G as Pagador autenticado
+    C->>W: Crear monto + cuenta propia + Idempotency-Key
+    W->>P: POST /payment-links
+    P->>DB: TX: claim key + link ACTIVE, expiresAt +24 h
+    DB-->>P: commit
+    P-->>W: 201 PaymentLink
+    W->>P: GET /payment-links/{id}/share-token
+    P-->>W: token firmado (no-store)
+    W-->>C: QR /pay#token
+    G->>W: abre fragmento y lo elimina de la barra
+    W->>P: POST /payment-links/resolve + JWT + token
+    P-->>W: monto, destino y vencimiento
+    G->>W: confirmar cuenta + Idempotency-Key
+    W->>P: POST /payment-links/pay
+    P->>DB: TX: lock link/cuentas + transferencia + ledger + outbox + PAID
+    DB-->>P: commit único
+    P-->>W: 201 link + transferencia COMPLETED
+```
+
+La autorización tiene dos fases:
+
+- ACTIVE: creador por ID; cualquier usuario autenticado con token válido puede resolver/pagar. El resumen es mínimo.
+- PAID: creador y pagador efectivo pueden consultar link y transferencia. El token ya no resuelve; otros actores reciben 404.
+- CANCELLED/EXPIRED: solo el creador puede ver el recurso por ID; resolve no distingue inexistencia o inactividad.
+
+Pago y cancelación serializan sobre `payment_links FOR UPDATE`. El pago bloquea luego las cuentas por UUID ascendente, crea una transferencia interna y actualiza el link en la misma transacción. Un índice único nullable en `transfers.payment_link_id` es la defensa final contra doble cobro. Crear/cancelar/pagar usan namespaces idempotentes separados; resolver y emitir token son lecturas sin efectos financieros.
+
+No se publican eventos por crear, consultar, firmar, cancelar o expirar links. Al pagar, la transferencia usa el outbox existente y agrega `paymentLinkId` opcional al evento financiero. Audit sigue autorizando por `GET /transfers/{id}` y no aprende una ACL nueva.
 
 ## Transferencia externa y respuesta desconocida
 

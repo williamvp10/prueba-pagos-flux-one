@@ -7,7 +7,7 @@ Fecha: 2026-10-15, America/Bogota. Este documento conserva verificaciones por fa
 | Redocly CLI 2.64.0, OpenAPI de servicios/browser/mock | Válidos, cero errores; 4 warnings de estilo: licencia sin URL y server localhost de desarrollo |
 | Mermaid CLI 12.0.0, render con Chrome | 6 diagramas convertidos a SVG sin errores de sintaxis |
 | AJV 8 con ajv-formats, JSON Schema 2020-12 | Schema compila, ejemplo válido, monto numérico rechazado |
-| Correspondencia spec → matriz | 62 IDs únicos y una fila por criterio |
+| Correspondencia spec → matriz | 74 IDs únicos y una fila por criterio tras incorporar links QR |
 | Enlaces Markdown locales | Targets existentes |
 | Payloads financieros servicio/browser | Schemas iguales |
 | Rutas del mock | Exactamente los 3 endpoints de la tabla |
@@ -74,3 +74,29 @@ Límites: no se hizo una prueba automatizada en navegador ni revisión visual co
 ## Despliegue público
 
 El Compose de producción se desplegó en Dokploy desde `6a71e46` en [central-banking-system.dokploywill.dpdns.org](https://central-banking-system.dokploywill.dpdns.org/). Se observaron respuestas `/` → 307 a `/accounts`, `/login` → 200 y `/api/health` → 200 (`ready`). Contenedores persistentes y de aplicación quedaron healthy; init, migraciones y seed finalizaron con código 0. Desde el BFF se autenticó Demo B, se confirmó el ID de usuario configurado y se obtuvo una cuenta con `GET /api/v1/accounts` (200). La prueba no expuso la contraseña ni cookies en la salida. Es un smoke de disponibilidad, ruteo y acceso, no una revisión completa de seguridad, respaldo, recuperación ante fallos o carga.
+
+## Backend de links de cobro QR
+
+- Se añadieron LINK-01..08 y UI-06..09, el contrato técnico `docs/payment-links.md`, arquitectura, modelo de datos/DBML, trazabilidad y prompt aislado para el agente frontend.
+- `npx --yes @redocly/cli@2.64.0 lint docs/openapi.yaml docs/browser.openapi.yaml docs/rail.openapi.yaml`: contratos válidos, cero errores y los mismos cuatro warnings conocidos de licencia/localhost.
+- AJV draft 2020-12 con formats: schema `audit-event.v1` y ejemplo actualizado con `paymentLinkId` opcional, válidos.
+- `pnpm contracts`: regeneró `ServicePaths/ServiceComponents` y `BrowserPaths/BrowserComponents` con las operaciones/schemas de payment-links.
+- Comparación estructural con `js-yaml`: 12 schemas financieros compartidos idénticos y las 7 operaciones de links presentes en servicio y browser.
+- `pnpm typecheck`: aprobó backend-kit, auth, payments, audit y web con los tipos regenerados.
+- `npm exec --package=@dbml/cli@5.2.0 -- dbml2sql docs/database.dbml --postgres`: DBML parseó y produjo 229 líneas SQL; los warnings mostrados fueron de dependencias transitivas de la CLI temporal.
+- Conteo focalizado: 74 criterios en `spec.md`, 74 filas en `traceability.md` y ningún `operationId` duplicado en el contrato privado.
+- `git diff --check` solo reporta el whitespace preexistente y ajeno en `apps/payments/src/application/payments.ts:183`; los archivos SDD de esta fase no agregan errores de whitespace.
+- Implementación Payments: migración aditiva `payment_links` y relación única transfer-link; token HMAC-SHA256 con secreto de 32 bytes que no se persiste; endpoints autenticados de crear/listar/consultar/compartir/resolver/pagar/cancelar; locks PostgreSQL, pago/ledger/outbox/idempotencia atómicos y privacidad creador/pagador.
+- `pnpm test`: build de backend, 15/15 pruebas unitarias Payments y 15/15 integración/configuración. Las respuestas HTTP se validan con OpenAPI. LINK-01..08 están verificados en `traceability.md`; pruebas incluyen firma alterada, 20 pagos concurrentes, error financiero sin efectos, acceso de participantes y reverso.
+- La firma secreta se generó localmente con `tools/setup-env.mjs`, preservando secretos existentes; se inyecta solo al servicio payments. No se versionó `.env` ni el secreto.
+- Rollback link por fallo técnico inyectado después de ledger queda como ampliación; el rollback transaccional general y la ausencia de efectos parciales ante errores de negocio sí se verificaron.
+- UI-06..09 implementados por el frontend; evidencia de recorrido browser local agregada abajo. La comprobación de usuario no participante encontró una respuesta API 404 sin datos del cobro; la página de detalle queda visualmente vacía en ese estado, aunque el componente define un mensaje de error. Pendiente corregir/verificar ese estado visual.
+
+## Verificación browser de links QR
+
+- Integración local en `main`: `858f6a1` (`feat(web): add payment links and QR checkout`). El commit fuente del worktree del agente (`2b62ce0`) tiene el mismo árbol de archivos; no se duplicó con cherry-pick. `f8a798f` registra el handoff frontend.
+- Compose E2E aislado `fluxone-payment-links-e2e`, puertos loopback 3210–3213 y dependencias/volúmenes separados del stack habitual. Los healthchecks quedaron healthy. Al terminar se detuvieron y retiraron sus contenedores/red sin borrar los volúmenes; el stack existente no se modificó.
+- Recorrido real en navegador: A (`demo.a`) inicia sesión, crea cobro por 250,50 COP desde ACC-001 y obtiene detalle QR/link activo; el tercero B (`demo.b`) abre `/pay`, inicia sesión inline, confirma el monto y paga desde ACC-002; la transferencia queda `COMPLETED` hacia ACC-001 y el detalle de A pasa a `PAID`, sin volver a mostrar el token de compartir.
+- Auditoría del flujo muestra `transfer.created` y `transfer.completed`. La página de transferencia completada se abrió desde el flujo del pago.
+- Privacidad negativa: C (`demo.c`), no participante, al consultar directamente el ID del link recibe HTTP 404 sin contenido del cobro. Observación UX pendiente: la vista de detalle deja `<main>` vacío ante este error, pese a que el componente contempla una tarjeta de error.
+- `pnpm test:all`: aprobado (15 Payments unitarias, 15 integración/configuración backend, 8 rail-mock, 9 web, typecheck y build de producción). Esto cubre tests y compilación; el recorrido browser anterior es evidencia manual adicional.
