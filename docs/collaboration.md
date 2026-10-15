@@ -8,7 +8,7 @@ Mismo repositorio y checkout, con propiedad exclusiva por rutas. Main sigue sien
 |---|---|---|---|
 | Tooling/contexto y coordinación | Chat coordinador | AGENTS.md, tools/**, .codex/**, docs centrales | Graphify y reglas implementados; evidencia en docs/verification.md |
 | Monorepo e infraestructura | Chat coordinador | manifests raíz, lockfile, infra/**, Compose, .env.example | Implementado; backend Compose verificado |
-| Pagos y contratos compartidos | Chat coordinador | apps/payments/**, packages/**, contratos y specs | Core implementado con pruebas; integración mock pendiente |
+| Pagos y contratos compartidos | Chat coordinador | apps/payments/**, packages/**, contratos y specs | Core implementado; integración Compose con mock verificada para aceptación y reverso externo; ampliar escenarios de rechazo/timeouts |
 | Mock bancario | Agente auxiliar externo; coordinador integrador | apps/rail-mock/** y docs/handoffs/rail-mock.md | Integrado en main; persistencia SQLite y 8 pruebas locales |
 | Auth y audit | Chat coordinador | apps/auth/**, apps/audit/** | Implementados, Swagger y health verificados |
 | Frontend y BFF | Segundo agente auxiliar; coordinador integrador | apps/web/** y docs/handoffs/frontend.md | Integrado en main; typecheck, pruebas y build de producción aprobados |

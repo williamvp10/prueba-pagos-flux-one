@@ -2,7 +2,7 @@
 
 ## Estado y prioridad
 
-Fase actual: backend de auth/payments/audit implementado y verificado en Docker, con contratos generados, Swagger y suite de pruebas. Web y mock están asignados a auxiliares; pendiente integración completa y ampliación de pruebas de crash recovery. Prioridad: seguridad financiera y trazabilidad; después UI; finalmente despliegue real si hay tiempo. No payment links.
+Estado de entrega: backend, portal/BFF y riel simulado integrados en `main`; `pnpm test:all`, smoke de Compose y disponibilidad pública en Dokploy están documentados. El despliegue en `central-banking-system.dokploywill.dpdns.org` se verificó desde el commit `6a71e46`. Permanecen pendientes CI remoto, pruebas automatizadas de navegador, algunos escenarios ampliados de crash recovery y validación integrada de fallos específicos del mock. No payment links.
 
 Horario objetivo comunicado: 15-10-2026, 08:30–11:30 America/Bogota, con spec inicial antes de 09:00. El commit inicial real fue `890d03d`, a las 09:02:38 -05:00: el hito de las 09:00 no se cumplió. Conservar esa evidencia sin reescribir fechas.
 
@@ -16,8 +16,8 @@ Horario objetivo comunicado: 15-10-2026, 08:30–11:30 America/Bogota, con spec 
 | 4. Mock y externas | tres endpoints, worker, leases, reservas y conciliación | cinco escenarios deterministas y recuperación tras reinicio |
 | 5. Auth y auditoría | login/registro/sesiones, autorización, outbox/consumer | permisos, rotación, caída de broker y deduplicación |
 | 6. Frontend | cuentas, crear, detalle, historial/auditoría, temas | flujo browser con doble clic y errores |
-| 7. Integración | Compose limpio, README real, matriz actualizada | sistema runnable y evidencia core |
-| 8. Entrega | último push y lista honesta de pendientes | antes del límite; VPS solo tras core verificado |
+| 7. Integración | Compose limpio, README real, matriz actualizada | completado; pruebas y smoke integrado registrados |
+| 8. Entrega | despliegue, repositorio y lista de pendientes | despliegue verificado; README actualizado; publicación de cambios finales y correo de entrega quedan por completar |
 
 Los pasos pueden dividirse en commits más pequeños. Auth debe estar integrado antes de considerar pagos expuesto a usuarios; no entregar un modo inseguro de actor por header para ahorrar tiempo.
 
@@ -35,7 +35,7 @@ Spec identificable + contrato actualizado si aplica + comportamiento implementad
 
 ## Entrega y sesión posterior
 
-README final debe decir qué corre, cómo probar en menos de cinco comandos, decisiones, supuestos, pendientes reales y qué haríamos con una hora más. Registrar uso de IA y al menos un error real corregido, sin inventar trabajo manual. Preparar explicación de un recorrido end-to-end: key → lock/reserva → banco → resultado → outbox → audit → UI.
+README final debe decir qué corre, cómo probar en menos de cinco comandos, decisiones, supuestos y pendientes reales. El README de entrega ya incluye el arranque local, el demo en vivo, stack, pruebas, documentación y límites. Registrar uso de IA y al menos un error real corregido, sin inventar trabajo manual. Preparar explicación de un recorrido end-to-end: key → lock/reserva → banco → resultado → outbox → audit → UI.
 
 ## Inicio con agente auxiliar
 

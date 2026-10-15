@@ -1,77 +1,87 @@
-# Prueba pagos Flux One
+# Flux One · Plataforma de pagos
 
-Monorepo planeado para un portal de pagos COP con arquitectura hexagonal, SDD, API First y trunk-based development.
+Demo de pagos y transferencias en COP, construida con API First y Spec-driven development. Incluye cuentas demo, transferencias entre usuarios, transferencias externas contra un riel bancario simulado, idempotencia, reversos y auditoría.
 
-**Estado: las tres APIs, el portal/BFF y el riel están integrados en `main`.** Auth, payments y audit usan NestJS/TypeORM y exponen Swagger; el portal Next.js se comunica por el BFF con cookies HttpOnly; el riel conserva respuestas idempotentes en SQLite. Compose define la pila completa. El remote `origin` está configurado; esta integración quedó local y no se hizo push ni despliegue VPS.
+**Aplicación en vivo:** [central-banking-system.dokploywill.dpdns.org](https://central-banking-system.dokploywill.dpdns.org/)
 
-## Leer primero
+**Repositorio:** [github.com/williamvp10/prueba-pagos-flux-one](https://github.com/williamvp10/prueba-pagos-flux-one)
 
-| Documento | Contenido |
-|---|---|
-| [Spec](docs/spec.md) | Reglas, criterios Given/When/Then y casos de fallo |
-| [Arquitectura](docs/architecture.md) | Servicios, puertos, límites y diagramas Mermaid |
-| [Modelo de datos](docs/data-model.md) | Propiedad, transacciones, locks e invariantes |
-| [API browser](docs/browser.openapi.yaml) | Contrato frontend → BFF con cookies, sin tokens en body |
-| [API de servicios](docs/openapi.yaml) | Contrato privado auth, pagos y auditoría; cliente servidor generado |
-| [API del riel](docs/rail.openapi.yaml) | Los tres endpoints del mock y sus respuestas |
-| [Eventos](docs/events.md) | Outbox, contrato JSON Schema, reintentos y consumidor |
-| [Frontend](docs/frontend.md) | Pantallas, componentes shadcn, tema y estados |
-| [Despliegue](docs/deployment.md) | Compose, variables, redes, migraciones y Dokploy |
-| [Verificación documental](docs/verification.md) | Checks ejecutados y límites de evidencia |
-| [Pruebas y trazabilidad](docs/traceability.md) | Criterio → prueba planeada → evidencia pendiente |
-| [Plan de trabajo](docs/plan.md) | Orden, gates, trunk y checklist de entrega |
-| [Decisiones](docs/adr/README.md) | Registro de decisiones arquitectónicas |
-| [Uso de IA](docs/ai-log.md) | Delegación, correcciones y pendientes reales |
+## Probar la aplicación
 
-## Colaboración y contexto
+La cuenta demo #2 corresponde a `demo.b@fluxone.local` y tiene asignada únicamente la cuenta `ACC-002`. La contraseña de producción se comparte en el correo de entrega; no se publica en este repositorio. Las cuentas demo son ficticias y sus saldos sirven solo para probar el flujo.
 
-Leer [AGENTS.md](AGENTS.md) y [coordinación](docs/collaboration.md) antes de editar. Los prompts de agentes están en [rail-mock](docs/prompts/rail-mock-agent.md) y [frontend](docs/prompts/frontend-agent.md). [Graphify](docs/graphify.md) permite consultar contexto local con `./tools/graphify query "idempotencia" --budget 1200`; coordinador reconstruye con `./tools/graphify rebuild`.
+En la aplicación se puede consultar saldo e historial, transferir a otra cuenta demo o al riel simulado, revisar eventos de auditoría y solicitar el reverso de una transferencia cuando su estado lo permite. El riel no conecta con bancos reales.
 
-## Stack decidido
+## Arquitectura
 
-TypeScript, pnpm workspaces, NestJS, TypeORM, PostgreSQL, RabbitMQ, Next.js App Router, shadcn, Tailwind y TanStack Query. Mock bancario Node.js/TypeScript con SQLite persistente. Node 24 LTS como runtime objetivo; fijar versiones compatibles y lockfile durante bootstrap.
+El monorepo usa pnpm workspaces y TypeScript. El portal Next.js sirve también como BFF y mantiene la sesión en cookies HttpOnly. Los servicios NestJS separan autenticación, pagos y auditoría; TypeORM conecta cada servicio a PostgreSQL con esquemas y credenciales aislados. RabbitMQ entrega eventos desde un outbox transaccional. El servicio `rail-mock` simula el banco externo y conserva transferencias y reversos en SQLite.
 
-## Arranque local completo
+Compose define doce servicios, una red privada y volúmenes persistentes. En Dokploy el portal se publica por HTTPS y el resto de servicios queda dentro de la red privada. El despliegue activo se verificó el 15 de octubre de 2026: el dominio responde, `/login` devuelve 200, `/` redirige a `/accounts` y `/api/health` informa `ready`.
 
-Requiere Docker Compose v2 y Node 24. Desde un clon:
+## Arranque local
+
+Requisitos: Docker Compose v2, Node.js 24 y Corepack/pnpm 10.25. Desde la raíz del repositorio:
 
 ```sh
+corepack enable
+pnpm install --frozen-lockfile
 node tools/setup-env.mjs
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d --wait
 ```
 
-El primer comando genera `.env` con credenciales y claves propias. Si ya existe, conserva todo y solo añade las variables faltantes de Demo C. No lo versiona. Compose inicializa roles, aplica migraciones y seeds sin resetear saldos; las APIs y dependencias se publican en loopback únicamente con el override de desarrollo. El portal queda disponible en http://localhost:3000.
-
-| Servicio | Swagger local | Salud |
-|---|---|---|
-| Auth | http://localhost:3101/docs | http://localhost:3101/health/ready |
-| Payments | http://localhost:3102/docs | http://localhost:3102/health/ready |
-| Audit | http://localhost:3103/docs | http://localhost:3103/health/ready |
-
-`/docs-json` devuelve el OpenAPI filtrado del servicio. Swagger usa el contrato YAML aprobado y permite bearer auth. Puertos dev configurables mediante AUTH_DEV_PORT/PAYMENTS_DEV_PORT/AUDIT_DEV_PORT. PostgreSQL local 15432 y AMQP local 15672, ambos solo 127.0.0.1; para una pila paralela usa `POSTGRES_DEV_PORT` y `RABBITMQ_DEV_PORT`.
-
-## Desarrollo, contratos y pruebas
+El portal queda en `http://localhost:3000` por defecto. Si el puerto está ocupado, configura `WEB_PORT` en `.env`. El setup genera credenciales locales y conserva las existentes; `.env` está excluido de Git. Para detener los servicios sin borrar los datos:
 
 ```sh
-pnpm install --frozen-lockfile
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+```
+
+No uses `down -v` si quieres conservar usuarios, saldos, eventos y resultados del riel.
+
+| Servicio | URL local |
+|---|---|
+| Portal | `http://localhost:3000` (o `WEB_PORT`) |
+| Swagger Auth | `http://localhost:3101/docs` |
+| Swagger Payments | `http://localhost:3102/docs` |
+| Swagger Audit | `http://localhost:3103/docs` |
+| Health del portal | `http://localhost:3000/api/health` |
+
+Los puertos de desarrollo se enlazan a loopback. PostgreSQL y RabbitMQ no se exponen públicamente; el override local los publica únicamente en `127.0.0.1`.
+
+## Contratos y verificación
+
+Los contratos OpenAPI son la fuente compartida por el backend y el frontend. `docs/browser.openapi.yaml` define la API del BFF hacia el navegador; `docs/openapi.yaml` define las APIs privadas; `docs/rail.openapi.yaml` define los tres endpoints del mock bancario. NestJS sirve Swagger por servicio desde esos contratos.
+
+```sh
 pnpm contracts
 pnpm test
 pnpm test:all
 ```
 
-La suite usa PostgreSQL/RabbitMQ de Compose, crea y destruye una DB y vhost de test exclusivos y levanta APIs de prueba en 13001–13003. No resetea datos demo. Comprueba dinero exacto, 20 peticiones con la misma key, sobregiro concurrente, reverso único, rollback por fallo de outbox, rotación de sesión, permisos, entrega real AMQP, Swagger y respuestas HTTP contra OpenAPI. Los fallos bancarios se prueban con un proveedor HTTP controlado en tests; no sustituyen integración con el rail-mock del otro agente.
+La última ejecución documentada de `pnpm test:all` pasó: pruebas backend, 8 pruebas del mock, typecheck, pruebas unitarias del frontend y build Next.js de producción. También se validó un smoke aislado de Compose con login por BFF, transferencia externa completada, reverso confirmado y eventos de auditoría consultables. La matriz de [trazabilidad](docs/traceability.md) identifica qué criterios tienen prueba completa y cuáles conservan cobertura parcial o pendiente; [verificación](docs/verification.md) contiene el detalle y los límites de evidencia. El workflow de CI está configurado, pero aún no hay evidencia de una ejecución remota en GitHub.
 
-`pnpm test` cubre backend (3 unitarias + 13 de integración/configuración). `pnpm test:all` añade las 8 pruebas SQLite del rail y el typecheck, 3 unitarias y build de producción del frontend. El smoke de Compose y los flujos por BFF se registran en [verificación](docs/verification.md); la matriz separa la cobertura directa del componente y la integración entre procesos. CI está configurado, pero no ejecutado remotamente.
+## Documentación
 
-## Supuestos y límites
+| Documento | Contenido |
+|---|---|
+| [Spec](docs/spec.md) | Reglas de negocio y criterios de aceptación |
+| [Arquitectura](docs/architecture.md) | Servicios, límites, comunicación y diagramas |
+| [Modelo de datos](docs/data-model.md) | Entidades, propiedad, transacciones e invariantes |
+| [API del navegador](docs/browser.openapi.yaml) | Contrato del portal/BFF con cookies HttpOnly |
+| [API de servicios](docs/openapi.yaml) | Contratos privados de Auth, Payments y Audit |
+| [API del riel](docs/rail.openapi.yaml) | Endpoints del banco simulado |
+| [Eventos](docs/events.md) | Outbox, mensajes, reintentos y consumo |
+| [Frontend](docs/frontend.md) | Pantallas, shadcn/ui, estados y temas |
+| [Despliegue](docs/deployment.md) | Compose, `.env.dokploy`, redes y operación en Dokploy |
+| [Verificación](docs/verification.md) | Pruebas, smoke e historial de validación |
+| [Trazabilidad](docs/traceability.md) | Requisitos y estado de prueba por criterio |
+| [Plan](docs/plan.md) | Flujo SDD, trunk-based y estado de entrega |
+| [Decisiones](docs/adr/README.md) | Decisiones arquitectónicas registradas |
+| [Uso de IA](docs/ai-log.md) | Delegación, integración y errores corregidos |
+| [Colaboración](docs/collaboration.md) | Reglas de ownership e integración para agentes |
+| [Graphify](docs/graphify.md) | Recuperación local del contexto del repo |
 
-- El evaluador aclaró que debemos construir el riel y podemos elegir el response body. Se conservan los tres endpoints originales.
-- `auth_schema` complementa los dos esquemas explícitos del enunciado y mantiene aislamiento.
-- Tres usuarios demo: A posee ACC-001, B posee ACC-002 y C posee ACC-003; cada identidad tiene una sola cuenta demo. Registro público crea una cuenta con saldo cero.
-- No payment links, correo de recuperación, alta libre de beneficiarios ni panel de administración en v1.
-- Objetivo de entrega comunicado: 15 de octubre de 2026, 11:30, America/Bogota; spec inicial antes de las 09:00. El historial real de Git determina los tiempos, sin backdating.
-- Publicación pública, invitaciones y correo de entrega permanecen pendientes; no se hizo push durante esta integración.
+## Alcance y límites
 
-## Con una hora adicional
+La aplicación es una prueba técnica demostrativa, no un producto bancario listo para procesar dinero real. El riel es simulado, los saldos son ficticios y no hay conexión con bancos. No incluye recuperación de contraseña por correo ni alta de beneficiarios. La suite aún deja escenarios de recuperación ante fallos y pruebas de navegador pendientes; el estado por requisito está marcado en la matriz para evitar presentar cobertura parcial como completa.
 
-Priorizar verificación y despliegue real en Dokploy, recuperación operativa de mensajes fallidos, observabilidad y revisión de seguridad. Registrar al cierre qué quedó realmente pendiente; esta lista es una intención, no evidencia de entrega.
+El archivo `.env.dokploy` contiene secretos y credenciales de demo de producción; se mantiene fuera de Git. Usa `.env.example` como referencia de nombres de variables y `docs/deployment.md` para configurar Dokploy. Mantén estables los IDs y las contraseñas demo entre despliegues, porque el seed es idempotente.

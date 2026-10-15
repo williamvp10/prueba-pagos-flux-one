@@ -73,14 +73,16 @@ Credenciales admin fuera de apps. Los volúmenes conservan Postgres, RabbitMQ y 
 
 1. Local: `node tools/setup-env.mjs` y `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d --wait`. Dokploy usa solo `docker-compose.yml`.
 2. Verificar health, login demo, saldos iniciales y una interna/externa/reverso.
-3. Reiniciar sin borrar volúmenes: conservar usuarios, saldos, resultados bancarios y eventos.
+3. En Dokploy, después de cambios de Compose o Domains, desplegar de nuevo sin borrar volúmenes: conservar usuarios, saldos, resultados bancarios y eventos.
 4. Detener broker: pagar interna; recuperar broker y comprobar auditoría eventual.
 5. Dokploy: variables raíz definidas, dominio/HTTPS configurados en Domains y smoke desde URL pública.
 
-No conocemos dominio ni recursos de VPS. Esos datos no bloquean documentación ni Compose local, pero deben comprobarse antes de desplegar. No afirmar despliegue realizado sin URL y smoke exitoso.
+## Estado del despliegue verificado
+
+Desplegado en Dokploy el 2026-10-15 desde el commit `6a71e46`. Dominio: [https://central-banking-system.dokploywill.dpdns.org](https://central-banking-system.dokploywill.dpdns.org/). Cloudflare resuelve el dominio y Dokploy termina HTTPS con su resolver `letsencrypt`; la aplicación está asociada a `web:3000`. Se verificó que `/` redirige a `/accounts`, `/login` devuelve 200 y `/api/health` devuelve 200 con `{"status":"ready"}`. Los servicios de aplicación e infraestructura quedaron healthy; init, migraciones y seed terminaron correctamente. No se eliminaron volúmenes.
 
 ## Evidencia y configuración dev actual
 
 Imágenes backend, web standalone y rail-mock construidas. `docker-compose.dev.yml` publica web en `WEB_PORT` (3000 por defecto), APIs en 3101/3102/3103 y PG/AMQP en 15432/15672, siempre loopback; puertos internos siguen 3000/3001/3002/3003, 5432 y 5672. Los puertos PG/AMQP se pueden cambiar con `POSTGRES_DEV_PORT` y `RABBITMQ_DEV_PORT` al correr más de una pila. `tools/setup-env.mjs` crea `.env` y, en un archivo existente, añade solo las variables demo C faltantes. El seed demo asigna ACC-001/002/003 a A/B/C respectivamente; mueve solo ACC-003 desde A a C preservando saldo y ledger existentes.
 
-El dominio real, DNS y HTTPS deben configurarse en Dokploy; todavía no se ha desplegado ni verificado en la VPS. No se atribuye despliegue completado sin URL y smoke exitoso.
+El entorno activo queda verificado con los checks HTTP anteriores. También se comprobó el inicio de sesión de Demo B y la lectura autenticada de una cuenta. Esto confirma disponibilidad y acceso demo; no equivale a una auditoría completa de seguridad, recuperación ante desastre o capacidad de producción bancaria.

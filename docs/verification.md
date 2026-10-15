@@ -29,7 +29,7 @@ Para Mermaid, usar @mermaid-js/mermaid-cli@12.0.0 con Chrome/Chromium disponible
 
 ## Límites de evidencia
 
-En esta verificación documental inicial todavía no existían apps, tests, CI ni Compose. Las fases posteriores se detallan abajo. Hoy `origin` está configurado y `main` conserva commits locales pendientes de push; publicación, invitaciones, correo y despliegue VPS siguen pendientes.
+La tabla inicial registra validaciones documentales de la primera fase; las secciones posteriores agregan evidencia de las aplicaciones y el despliegue. El despliegue público actual se describe al final. `origin` está configurado y este checkout puede incluir documentación local posterior al commit desplegado. No se han enviado invitaciones ni el correo de entrega.
 
 El commit inicial 890d03d se creó a las 09:02:38 -05:00, después del hito de 09:00. Se conserva historial auténtico. Los contratos se corrigieron después mediante otro commit, sin amend ni cambio de fechas.
 
@@ -49,7 +49,7 @@ El commit inicial 890d03d se creó a las 09:02:38 -05:00, después del hito de 0
 - PostgreSQL/RabbitMQ reales en Docker; DB y vhost de test exclusivos se crean y eliminan. Simulador HTTP bancario exclusivamente de test; no sustituye el servicio delegado.
 - `docker compose config --quiet`: configuración válida. `docker compose build auth`: imagen backend construida con los tres servicios. Arranque dirigido a auth/payments/audit ejecuta init, migraciones y seed. Swagger y salud dev 3101/3102/3103 responden 200.
 - CI completo configurado en .github/workflows/backend.yml para `pnpm test:all`; no se ha ejecutado en GitHub.
-- Pruebas pendientes: ventanas reales de crash entre confirm/update y persist/ack, escenarios específicos de reversos externos, UI y despliegue Dokploy. El Compose completo se validó en la fase siguiente.
+- Pruebas pendientes: ventanas reales de crash entre confirm/update y persist/ack, escenarios específicos de reversos externos y UI en navegador. El Compose completo y el despliegue Dokploy se validaron en fases posteriores.
 
 Correcciones verificadas: normalización del resultado UPDATE RETURNING de TypeORM, enum nullable de reversalStatus, cursor sin pérdida de microsegundos y credenciales propias de audit en Compose. Puerto ajeno 3001 conservado intacto; backend dev usa 3101–3103.
 
@@ -69,4 +69,8 @@ Correcciones verificadas: normalización del resultado UPDATE RETURNING de TypeO
 - Stack local reconstruido con Compose base y dev override; servicios healthy. Los logins BFF de A/B/C dieron 200 y cada usuario recibió una sola cuenta. Los saldos ya existentes se conservaron.
 - `pnpm test:all` pasó tras el cambio: 3 pruebas unitarias de backend, 13 de integración/configuración, 8 del mock, 3 del frontend, typecheck y build de Next.js.
 
-Límites: no se hizo una prueba automatizada en navegador ni revisión visual completa de tema claro/oscuro; UI-01..05 siguen pendientes de evidencia browser. El mock valida sintaxis/runtime de type stripping, no tipos TypeScript semánticos. CI remoto, VPS/Dokploy y push siguen pendientes.
+Límites: no se hizo una prueba automatizada en navegador ni revisión visual completa de tema claro/oscuro; UI-01..05 siguen pendientes de evidencia browser. El mock valida sintaxis/runtime de type stripping, no tipos TypeScript semánticos. CI remoto sigue pendiente.
+
+## Despliegue público
+
+El Compose de producción se desplegó en Dokploy desde `6a71e46` en [central-banking-system.dokploywill.dpdns.org](https://central-banking-system.dokploywill.dpdns.org/). Se observaron respuestas `/` → 307 a `/accounts`, `/login` → 200 y `/api/health` → 200 (`ready`). Contenedores persistentes y de aplicación quedaron healthy; init, migraciones y seed finalizaron con código 0. Desde el BFF se autenticó Demo B, se confirmó el ID de usuario configurado y se obtuvo una cuenta con `GET /api/v1/accounts` (200). La prueba no expuso la contraseña ni cookies en la salida. Es un smoke de disponibilidad, ruteo y acceso, no una revisión completa de seguridad, respaldo, recuperación ante fallos o carga.
