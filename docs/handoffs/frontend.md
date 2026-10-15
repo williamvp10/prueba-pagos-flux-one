@@ -80,7 +80,7 @@ No se ejecutó un recorrido automatizado de navegador ni revisión visual de tod
 
 ## Iteración links QR
 
-Estado: READY_FOR_REVIEW. Implementación frontend lista para revisión en worktree `codex/payment-links-qr`. Instalé `qrcode` y `@types/qrcode` dentro del worktree con `pnpm install --filter @fluxone/web`; el `pnpm-lock.yaml` de esta rama incluye esos paquetes. El branch requiere integrar los `BrowserComponents` nuevos que el coordinador mantiene pendientes en el checkout principal antes de compilar por sí solo.
+Estado: INTEGRATED / VERIFIED en `main` (`858f6a1`). El mismo cambio está en el worktree `codex/payment-links-qr` (`2b62ce0`). Instalé `qrcode` y `@types/qrcode` dentro del worktree con `pnpm install --filter @fluxone/web`; ambos quedaron en el lockfile integrado. El typecheck/build de este checkout usaron los `BrowserComponents` nuevos que el coordinador tiene en sus cambios de contrato pendientes; un checkout limpio necesita integrar esos tipos junto al backend de links.
 
 ### Rutas y cobertura
 
@@ -101,4 +101,4 @@ Criterios abordados: UI-06..09; LINK-01, 02, 03, 05, 06 y 07 por el flujo browse
 - `pnpm --filter @fluxone/web build` — pasó con Next.js 16.4.1 usando la misma fuente tipada temporal; repetir tras integrar los tipos contractuales.
 - No se ejecutó journey de navegador ni verificación visual de breakpoints/temas/zoom; no se reporta como evidencia.
 
-Pendiente de integración: incorporar a esta rama el cliente generado desde `docs/browser.openapi.yaml` cuando el coordinador publique sus cambios de contrato, volver a correr typecheck/build sin fuentes temporales, verificar BFF/Compose con el backend de links y ejecutar revisión visual/browser antes de integrar a `main`.
+Pendiente de verificación de extremo a extremo: los cambios de payments/contrato que acompañan esta feature siguen en curso en el checkout principal. Tras integrarlos, repetir typecheck/build desde un checkout limpio y verificar BFF/Compose, journey de navegador y revisión visual de breakpoints/temas antes de dar por cubierta la integración completa.
