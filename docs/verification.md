@@ -1,6 +1,6 @@
 # Verificación de la base documental
 
-Fecha: 2026-10-15, America/Bogota. Estado evaluado: documentación previa a implementación.
+Fecha: 2026-10-15, America/Bogota. Este documento conserva verificaciones por fase; el bloque final describe el backend actual.
 
 | Verificación real | Resultado |
 |---|---|
@@ -29,7 +29,7 @@ Para Mermaid, usar @mermaid-js/mermaid-cli@12.0.0 con Chrome/Chromium disponible
 
 ## Límites de evidencia
 
-No existen todavía apps, tests de negocio, CI ni Compose. Ningún criterio de aplicación está marcado como verificado por validar su spec. No hay remote, push, invitaciones, correo de entrega ni despliegue VPS. Esas comprobaciones pertenecen a la siguiente fase.
+En esta verificación documental inicial todavía no existían apps, tests, CI ni Compose. La fase backend posterior se detalla abajo; remote, push, invitaciones, correo y despliegue VPS siguen pendientes.
 
 El commit inicial 890d03d se creó a las 09:02:38 -05:00, después del hito de 09:00. Se conserva historial auténtico. Los contratos se corrigieron después mediante otro commit, sin amend ni cambio de fechas.
 
@@ -40,3 +40,15 @@ El commit inicial 890d03d se creó a las 09:02:38 -05:00, después del hito de 0
 - Índice inicial con más de 280 nodos; tamaño exacto puede crecer con nueva documentación. Imports externos/no resueltos se omiten con conteo explícito; ninguna dependencia de aplicación se considera implementada por aparecer en docs.
 - .graphifyignore excluye skills vendor, secretos, outputs y dependencias. graphify-out está ignorado por Git. Solo coordinador reconstruye; ningún auxiliar iniciado desde esta sesión.
 - AGENTS, estrategia de coordinación y prompt del mock presentes; ownership por rutas y un único responsable de commits/lockfile.
+
+## Backend implementado y verificado
+
+- `pnpm contracts`: tipos de servicios y browser generados y exportados en @fluxone/api-client.
+- `pnpm test`: build de kit y tres servicios, 3 unitarias y 13 tests de integración/configuración aprobados. Respuestas HTTP de la suite verificadas contra el contrato fuente.
+- `node --test --test-name-pattern=IDEM-05 tests/backend.test.cjs`: rollback tras escribir débito/crédito y fallar outbox de completed, aprobado.
+- PostgreSQL/RabbitMQ reales en Docker; DB y vhost de test exclusivos se crean y eliminan. Simulador HTTP bancario exclusivamente de test; no sustituye el servicio delegado.
+- `docker compose config --quiet`: configuración válida. `docker compose build auth`: imagen backend construida con los tres servicios. Arranque dirigido a auth/payments/audit ejecuta init, migraciones y seed. Swagger y salud dev 3101/3102/3103 responden 200.
+- CI backend configurado en .github/workflows/backend.yml; no se ha ejecutado en GitHub.
+- Pruebas pendientes: ventanas reales de crash entre confirm/update y persist/ack, escenarios específicos de reversos externos, UI y mock final de auxiliares, Compose completo y Dokploy. Matriz diferencia evidencia parcial.
+
+Correcciones verificadas: normalización del resultado UPDATE RETURNING de TypeORM, enum nullable de reversalStatus, cursor sin pérdida de microsegundos y credenciales propias de audit en Compose. Puerto ajeno 3001 conservado intacto; backend dev usa 3101–3103.

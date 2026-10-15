@@ -17,6 +17,7 @@ Estado: aceptadas para v1 por decisiones explícitas del usuario o defaults docu
 | ADR-011 | Bootstrap explícito de cuenta tras login | No transacción distribuida auth/pagos. Reintento idempotente por propietario sin volver a registrar usuario. |
 | ADR-012 | Un .env raíz, variables limitadas por servicio | Cumple Dokploy y evita compartir todos los secretos con cada contenedor. Override solo para entrada Traefik. |
 | ADR-013 | Polling y shadcn con tema azul | Complejidad menor que SSE, claridad de pending/unknown; temas accesibles y componentes estándar. |
+| ADR-014 | TypeORM DataSource/EntityManager y SQL explícito en adapters | Mantiene SQL de locks/constraints/migrations visible y dominio sin entities ORM. UnitOfWork usa un único manager; imports de TypeORM se limitan a infraestructura/bootstrap. |
 
 ## Alternativas descartadas para v1
 

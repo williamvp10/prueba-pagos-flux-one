@@ -4,7 +4,7 @@
 
 La raíz Git es esta carpeta `prueba-pagos-flux-one`, no su directorio padre. Un único repo contiene tres microservicios NestJS (auth/payments/audit), Next.js y un mock bancario independiente. Objetivo: portal de pagos COP con SDD, API First y arquitectura hexagonal, runnable con Docker Compose y preparado para Dokploy.
 
-Documentación/contratos completos; implementación de aplicaciones todavía pendiente al crear estas reglas. Graphify y herramientas de contexto sí están integrados. Antes de actuar comprobar `git status --short`, `git log -3 --oneline` y existencia de manifests/servicios: estas reglas no sustituyen el estado real. No afirmar servicios, tests, CI, remote o despliegue existentes sin comprobarlos.
+Backend auth/payments/audit implementado con Swagger y pruebas locales; Compose del backend verificado. Frontend y mock están reservados a auxiliares y su estado se consulta en handoffs. Graphify y herramientas de contexto integrados. Antes de actuar comprobar `git status --short`, `git log -3 --oneline` y existencia de manifests/servicios: estas reglas no sustituyen el estado real. No afirmar servicios, tests, CI, remote o despliegue existentes sin comprobarlos.
 
 El evaluador aclaró que nosotros construimos el mock y elegimos sus responses, conservando los tres endpoints de su tabla. Horario informado: 15-10-2026, 11:30 America/Bogota. Spec inicial real: 890d03d, 09:02:38 -05:00, después del hito de 09:00; no alterar fechas.
 
@@ -100,7 +100,7 @@ npx --yes @redocly/cli@2.64.0 lint docs/openapi.yaml docs/browser.openapi.yaml d
 npm exec --yes --package=ajv-cli@5.0.0 --package=ajv-formats@3.0.1 -- ajv validate --spec=draft2020 -c ajv-formats -s docs/contracts/audit-event.v1.schema.json -d docs/contracts/audit-event.v1.example.json
 ```
 
-Todavía no hay scripts pnpm ni Compose funcional: añadir instrucciones ejecutables solo al verificarlas. Auxiliar no debe descargar tooling ni modificar lockfile fuera de su propiedad para simular un check.
+Scripts backend y Compose parcial están verificados: ver README para arranque dirigido a auth/payments/audit/rabbitmq. El Compose completo depende de entregas web/mock. `pnpm test` requiere .env e infraestructura local; usa DB/vhost efímeros. Auxiliar no debe modificar lockfile fuera de su propiedad para simular un check.
 
 Handoff obligatorio: rutas cambiadas, contrato respetado, criterios cubiertos, comandos y resultados reales, dependencias/variables solicitadas y pendientes. No marcar prueba cubierta por existir un documento. Coordinador actualiza matriz, ai-log, README e integra con commits pequeños sobre main.
 

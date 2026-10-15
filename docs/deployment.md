@@ -1,6 +1,6 @@
 # Despliegue objetivo: Compose y Dokploy
 
-Estado: especificación. No se ha creado ni ejecutado infraestructura todavía.
+Estado: infraestructura de backend construida y arrancada localmente; web/mock pendientes de integrar. Ver README para comandos ejecutados.
 
 ## Servicios del archivo docker-compose.yml
 
@@ -17,7 +17,7 @@ Estado: especificación. No se ha creado ni ejecutado infraestructura todavía.
 | migrate-auth / migrate-payments / migrate-audit | one-shot | cada uno su esquema y credencial migradora |
 | seed | one-shot | ejecuta seed separado por servicio; no lee esquemas cruzados |
 
-init-db espera postgres healthy; migrations esperan init completado; seed espera migrations; apps esperan migrations y seed. Worker de pagos soporta broker/mock temporalmente caídos; no exigir broker healthy para servir transferencias internas. Audit responde readiness degraded si consumidor no conecta, conserva liveness si puede recuperarse. Liveness no consulta dependencias; readiness indica qué capacidad está disponible. Inicialización del mock aplica su migración SQLite antes de ready.
+init-db espera postgres healthy; migrations esperan init completado; seed espera migrations; apps esperan seed (que ya depende de migrations). Worker de pagos soporta broker/mock temporalmente caídos; no exigir broker healthy para servir transferencias internas. Audit responde readiness degraded si consumidor no conecta, conserva liveness si puede recuperarse. Liveness no consulta dependencias; readiness indica qué capacidad está disponible. Inicialización del mock aplica su migración SQLite antes de ready.
 
 Health HTTP sin autenticación en red privada: live devuelve 200 si el proceso puede responder; ready devuelve 200 si puede servir su capacidad base y 503 si no. Body `{status: "ok" | "degraded", service: string}`. No exponer DSNs ni secretos en salud. Para payments, DB caída impide readiness; broker caído se observa como capacidad de auditoría degradada en logs/métricas sin bloquear el core.
 
@@ -61,7 +61,7 @@ Variables objetivo:
 | Demo | DEMO_A_ID, DEMO_B_ID, DEMO_A_EMAIL, DEMO_B_EMAIL, DEMO_A_PASSWORD, DEMO_B_PASSWORD |
 | Mock | RAIL_MODE, RAIL_SCENARIOS |
 
-Hosts y puertos internos derivan de nombres de servicio en Compose; no duplicar configuración de red en browser. Solo auth recibe private key; payments/audit reciben public key. Web solo URLs privadas y APP_ORIGIN; no recibe credenciales de DB/broker ni private key. Ningún secreto con prefijo NEXT_PUBLIC_. Generación inicial de keys/UUIDs/secrets se resolverá con script de setup raíz en implementación y actualizará solo `.env`.
+Hosts y puertos internos derivan de nombres de servicio en Compose; no duplicar configuración de red en browser. Solo auth recibe private key; payments/audit reciben public key. Web solo URLs privadas y APP_ORIGIN; no recibe credenciales de DB/broker ni private key. Ningún secreto con prefijo NEXT_PUBLIC_. Generación inicial de keys/UUIDs/secrets resuelta con tools/setup-env.mjs, que crea solo `.env` cuando falta.
 
 ## Seguridad y operación mínima
 
@@ -78,3 +78,9 @@ Credenciales admin fuera de apps. Respaldar DB y volumen SQLite antes de cambios
 5. Dokploy: dominio y HTTPS definidos durante despliegue real, red de entrada existente, variables raíz, override y smoke desde URL pública.
 
 No conocemos dominio ni recursos de VPS. Esos datos no bloquean documentación ni Compose local, pero deben comprobarse antes de desplegar. No afirmar despliegue realizado sin URL y smoke exitoso.
+
+## Evidencia y configuración dev actual
+
+Imagen backend multi-stage construida y auth/payments/audit en ejecución con healthchecks y Swagger. docker-compose.dev.yml publica APIs en 3101/3102/3103 por defecto y PG/AMQP en 15432/15672, siempre loopback; puertos internos siguen 3001/3002/3003, 5432 y 5672. El puerto 3001 estaba ocupado por otro proceso y se dejó intacto. tools/setup-env.mjs genera .env solo si falta.
+
+El override de Dokploy todavía debe prepararse cuando se conozca la entrada web y se integren auxiliares; no existe despliegue VPS verificado. No se atribuye arranque completo a una prueba parcial de backend.

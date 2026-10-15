@@ -7,10 +7,10 @@ Mismo repositorio y checkout, con propiedad exclusiva por rutas. Main sigue sien
 | Frente | Propietario | Rutas | Estado |
 |---|---|---|---|
 | Tooling/contexto y coordinación | Chat coordinador | AGENTS.md, tools/**, .codex/**, docs centrales | Graphify y reglas implementados; evidencia en docs/verification.md |
-| Monorepo e infraestructura | Chat coordinador | manifests raíz, lockfile, infra/**, Compose, .env.example | Pendiente de bootstrap |
-| Pagos y contratos compartidos | Chat coordinador | apps/payments/**, packages/**, contratos y specs | Pendiente de implementación |
+| Monorepo e infraestructura | Chat coordinador | manifests raíz, lockfile, infra/**, Compose, .env.example | Implementado; backend Compose verificado |
+| Pagos y contratos compartidos | Chat coordinador | apps/payments/**, packages/**, contratos y specs | Core implementado con pruebas; integración mock pendiente |
 | Mock bancario | Agente auxiliar externo | apps/rail-mock/** y docs/handoffs/rail-mock.md | RESERVADO; prompt listo, no iniciado desde este chat |
-| Auth y audit | Chat coordinador | apps/auth/**, apps/audit/** | Implementación backend junto con pagos |
+| Auth y audit | Chat coordinador | apps/auth/**, apps/audit/** | Implementados, Swagger y health verificados |
 | Frontend y BFF | Segundo auxiliar externo | apps/web/** y docs/handoffs/frontend.md | RESERVADO; prompt frontend-agent.md listo |
 
 El estado de esta tabla es una asignación, no evidencia de procesos en ejecución. Solo cambia el coordinador. La sesión iniciada por el usuario con el prompt será responsable del mock; no se ha despachado un agente duplicado automáticamente.
@@ -46,3 +46,7 @@ Si surge una necesidad compartida, dejar propuesta concreta en handoff y continu
 El auxiliar frontend posee apps/web y su handoff. Cliente compartido @fluxone/api-client lo genera el coordinador; exports tipados ServicePaths/ServiceComponents y BrowserPaths/BrowserComponents. APIs privadas configuradas con AUTH_API_URL/PAYMENTS_API_URL/AUDIT_API_URL (base /api/v1). El coordinador no crea ni reformatea apps/web mientras el auxiliar esté activo.
 
 Swagger es responsabilidad del backend: cada servicio sirve /docs y /docs-json con su subconjunto del OpenAPI autoritativo; no regenerar contrato desde decorators como fuente. Frontend no debe crear Swagger alternativo.
+
+## Backend disponible para integrar
+
+APIs locales: auth http://localhost:3101/api/v1, payments http://localhost:3102/api/v1, audit http://localhost:3103/api/v1. En Compose mantener auth:3001, payments:3002 y audit:3003. Swagger /docs y /docs-json por servicio. @fluxone/api-client ya contiene los exports acordados, generados de contratos. Credenciales demo únicamente en .env raíz, no copiarlas a handoffs.

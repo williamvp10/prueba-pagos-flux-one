@@ -2,7 +2,7 @@
 
 ## Estado y prioridad
 
-Fase actual: documentación, contratos y tooling de contexto verificados; bootstrap de aplicaciones pendiente. Servicios, Compose y tests de aplicación todavía no existen. Prioridad: seguridad financiera y trazabilidad; después UI; finalmente despliegue real si hay tiempo. No payment links.
+Fase actual: backend de auth/payments/audit implementado y verificado en Docker, con contratos generados, Swagger y suite de pruebas. Web y mock están asignados a auxiliares; pendiente integración completa y ampliación de pruebas de crash recovery. Prioridad: seguridad financiera y trazabilidad; después UI; finalmente despliegue real si hay tiempo. No payment links.
 
 Horario objetivo comunicado: 15-10-2026, 08:30–11:30 America/Bogota, con spec inicial antes de 09:00. El commit inicial real fue `890d03d`, a las 09:02:38 -05:00: el hito de las 09:00 no se cumplió. Conservar esa evidencia sin reescribir fechas.
 

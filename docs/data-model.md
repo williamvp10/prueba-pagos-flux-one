@@ -36,7 +36,7 @@ erDiagram
 
 - accounts: UUID, `code` único (ACC-001 etc.), owner UUID, role PRIMARY/SECONDARY, balance/reserved bigint, timestamps. Índice único owner/role; ACC-001 es PRIMARY de A y ACC-003 SECONDARY.
 - external_beneficiaries: códigos `EXT-001`, `EXT-002`, nombre, estado activo. Catálogo igual al mock; sin CRUD público v1.
-- transfers: UUID, actor, source FK local, destination kind/code, monto, moneda COP, estado, secuencia, referencia bancaria única, datos de lease y próximo intento, timestamps. FK destino solo para internas mediante columna nullable.
+- transfers: UUID, actor, source FK local, destination kind/code, monto, moneda COP, estado, secuencia, referencia bancaria única, datos de lease y próximo intento, timestamps. El destino interno se valida por código dentro del servicio; no hay API de borrado de cuentas en v1. La columna de destino también representa externos y no tiene FK.
 - reversals: UUID, transferencia, actor, monto completo, estado, referencia bancaria única, lease/reintentos. Índice único parcial por transferencia para estados PENDING/PROCESSING/UNKNOWN/COMPLETED; FAILED permite un nuevo intento con nueva key.
 - idempotency_records: clave compuesta única `(subject_id, operation, key)`, hash SHA-256 de campos semánticos normalizados, status HTTP y body de resultado. No expirar durante v1.
 - outbox_events: event UUID, transferencia, secuencia, payload, published_at, attempts, next_attempt_at, lease_until. Único por transferencia/secuencia.

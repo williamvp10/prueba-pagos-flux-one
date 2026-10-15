@@ -2,7 +2,7 @@
 
 ## Estrategia
 
-Paquete principal: coverage-plan; secundario: contract-and-api-checks. Riesgos principales: doble débito, sobregiro, pérdida de reserva/evento y exposición de recursos ajenos. No existe cobertura ejecutable todavía.
+Paquete principal: coverage-plan; secundario: contract-and-api-checks. Riesgos principales: doble débito, sobregiro, pérdida de reserva/evento y exposición de recursos ajenos. Existe suite backend ejecutable; las filas indican evidencia completa, parcial o pendiente.
 
 | Capa | Dependencias | Evidencia que debe producir |
 |---|---|---|
@@ -31,66 +31,71 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 
 | Criterio | Caso | Capa prevista | Test planeado | Estado / evidencia |
 |---|---|---|---|---|
-| AUTH-01 | Registro y cuenta propia | integration | `auth-01.integration.spec.ts` | PENDIENTE; sin implementación |
+| AUTH-01 | Registro y cuenta propia | integration | `tests/backend.test.cjs`| PARCIAL; registro/bootstrap API; flujo UI pendiente |
 | AUTH-02 | Credenciales inválidas | integration | `auth-02.integration.spec.ts` | PENDIENTE; sin implementación |
-| AUTH-03 | Identidad duplicada | integration | `auth-03.integration.spec.ts` | PENDIENTE; sin implementación |
-| AUTH-04 | Acceso protegido | integration | `auth-04.integration.spec.ts` | PENDIENTE; sin implementación |
-| AUTH-05 | Propiedad | integration | `auth-05.integration.spec.ts` | PENDIENTE; sin implementación |
-| AUTH-06 | Rotación y reutilización | integration | `auth-06.integration.spec.ts` | PENDIENTE; sin implementación |
-| AUTH-07 | Logout y expiración | integration | `auth-07.integration.spec.ts` | PENDIENTE; sin implementación |
+| AUTH-03 | Identidad duplicada | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| AUTH-04 | Acceso protegido | integration | `tests/backend.test.cjs`| PARCIAL; JWT ausente probado; falta expirado/alterado |
+| AUTH-05 | Propiedad | integration | `tests/backend.test.cjs`| PARCIAL; débito y auditoría ajenos probados; completar demás rutas |
+| AUTH-06 | Rotación y reutilización | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| AUTH-07 | Logout y expiración | integration | `tests/backend.test.cjs`| PARCIAL; logout probado; expiración temporal pendiente |
 | AUTH-08 | Protección de entrada | integration | `auth-08.integration.spec.ts` | PENDIENTE; sin implementación |
 | AUTH-09 | Bootstrap recuperable | acceptance | `auth-09.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| PAY-01 | Interna exitosa | integration | `pay-01.integration.spec.ts` | PENDIENTE; sin implementación |
-| PAY-02 | Importe inválido | unit | `pay-02.unit.spec.ts` | PENDIENTE; sin implementación |
-| PAY-03 | Sin fondos | integration | `pay-03.integration.spec.ts` | PENDIENTE; sin implementación |
-| PAY-04 | Origen y destino | integration | `pay-04.integration.spec.ts` | PENDIENTE; sin implementación |
-| PAY-05 | Concurrencia sobre saldo | integration | `pay-05.integration.spec.ts` | PENDIENTE; sin implementación |
-| PAY-06 | Exactitud decimal | unit | `pay-06.unit.spec.ts` | PENDIENTE; sin implementación |
-| PAY-07 | Saldo y catálogo | integration | `pay-07.integration.spec.ts` | PENDIENTE; sin implementación |
-| PAY-08 | Historial | integration | `pay-08.integration.spec.ts` | PENDIENTE; sin implementación |
-| PAY-09 | Desborde del destinatario | integration | `pay-09.integration.spec.ts` | PENDIENTE; sin implementación |
-| IDEM-01 | Replay exacto | integration | `idem-01.integration.spec.ts` | PENDIENTE; sin implementación |
-| IDEM-02 | Payload distinto | integration | `idem-02.integration.spec.ts` | PENDIENTE; sin implementación |
-| IDEM-03 | Carrera de misma key | integration | `idem-03.integration.spec.ts` | PENDIENTE; sin implementación |
-| IDEM-04 | Header obligatorio | contract | `idem-04.contract.spec.ts` | PENDIENTE; sin implementación |
-| IDEM-05 | Caída antes de commit | integration | `idem-05.integration.spec.ts` | PENDIENTE; sin implementación |
+| PAY-01 | Interna exitosa | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| PAY-02 | Importe inválido | unit | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| PAY-03 | Sin fondos | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| PAY-04 | Origen y destino | integration | `tests/backend.test.cjs`| PARCIAL; misma cuenta probada; ampliar inexistentes |
+| PAY-05 | Concurrencia sobre saldo | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| PAY-06 | Exactitud decimal | unit | `tests/backend.test.cjs`| PARCIAL; aritmética exacta unitaria; ampliar compensación decimal HTTP |
+| PAY-07 | Saldo y catálogo | integration | `tests/backend.test.cjs`| PARCIAL; saldos API usados en tests; catálogo pendiente de aceptación |
+| PAY-08 | Historial | integration | `tests/backend.test.cjs`| PARCIAL; cursor y filtros probados; ampliar exclusión de usuarios |
+| PAY-09 | Desborde del destinatario | integration | `tests/backend.test.cjs`| PARCIAL; guard unitario; falta rollback DB por overflow |
+| IDEM-01 | Replay exacto | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| IDEM-02 | Payload distinto | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| IDEM-03 | Carrera de misma key | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| IDEM-04 | Header obligatorio | contract | `tests/backend.test.cjs`| PARCIAL; header ausente probado; ampliar longitud/caracteres |
+| IDEM-05 | Caída antes de commit | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | IDEM-06 | Caída después de commit | integration | `idem-06.integration.spec.ts` | PENDIENTE; sin implementación |
-| IDEM-07 | Error de negocio consumido | integration | `idem-07.integration.spec.ts` | PENDIENTE; sin implementación |
-| RAIL-01 | Banco acepta | acceptance | `rail-01.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| RAIL-02 | Banco rechaza | acceptance | `rail-02.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| RAIL-03 | Banco no disponible | acceptance | `rail-03.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| RAIL-04 | Timeout procesado | acceptance | `rail-04.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| RAIL-05 | Timeout no procesado | acceptance | `rail-05.acceptance.spec.ts` | PENDIENTE; sin implementación |
+| IDEM-07 | Error de negocio consumido | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| RAIL-01 | Banco acepta | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
+| RAIL-02 | Banco rechaza | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
+| RAIL-03 | Banco no disponible | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
+| RAIL-04 | Timeout procesado | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
+| RAIL-05 | Timeout no procesado | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
 | RAIL-06 | Consulta indisponible | acceptance | `rail-06.acceptance.spec.ts` | PENDIENTE; sin implementación |
 | RAIL-07 | Worker reiniciado | acceptance | `rail-07.acceptance.spec.ts` | PENDIENTE; sin implementación |
 | RAIL-08 | Respuesta inesperada | contract | `rail-08.contract.spec.ts` | PENDIENTE; sin implementación |
 | MOCK-01 | Contrato e idempotencia bancaria | integration | `mock-01.integration.spec.ts` | PENDIENTE; sin implementación |
 | MOCK-02 | Persistencia bancaria | integration | `mock-02.integration.spec.ts` | PENDIENTE; sin implementación |
 | MOCK-03 | Modos de fallo | contract | `mock-03.contract.spec.ts` | PENDIENTE; sin implementación |
-| REV-01 | Interno exitoso | integration | `rev-01.integration.spec.ts` | PENDIENTE; sin implementación |
+| REV-01 | Interno exitoso | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | REV-02 | Sin saldo para devolver | integration | `rev-02.integration.spec.ts` | PENDIENTE; sin implementación |
-| REV-03 | Estado incompatible | integration | `rev-03.integration.spec.ts` | PENDIENTE; sin implementación |
-| REV-04 | Carrera de reversos | integration | `rev-04.integration.spec.ts` | PENDIENTE; sin implementación |
-| REV-05 | Reverso externo aceptado | acceptance | `rev-05.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| REV-06 | Reverso externo rechazado | acceptance | `rev-06.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| REV-07 | Reverso externo indisponible | acceptance | `rev-07.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| REV-08 | Reverso externo ambiguo | acceptance | `rev-08.acceptance.spec.ts` | PENDIENTE; sin implementación |
+| REV-03 | Estado incompatible | integration | `tests/backend.test.cjs`| PARCIAL; ya reversada probado; ampliar demás estados |
+| REV-04 | Carrera de reversos | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| REV-05 | Reverso externo aceptado | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
+| REV-06 | Reverso externo rechazado | acceptance | `tests/backend.test.cjs`| PARCIAL; implementado; falta test de rechazo del reverso |
+| REV-07 | Reverso externo indisponible | acceptance | `tests/backend.test.cjs`| PARCIAL; implementado; falta test de 503 del reverso |
+| REV-08 | Reverso externo ambiguo | acceptance | `tests/backend.test.cjs`| PARCIAL; implementado; falta timeout específico de reverso |
 | REV-09 | Permiso y monto del reverso | contract | `rev-09.contract.spec.ts` | PENDIENTE; sin implementación |
-| AUD-01 | Eventos completos | acceptance | `aud-01.acceptance.spec.ts` | PENDIENTE; sin implementación |
+| AUD-01 | Eventos completos | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | AUD-02 | Broker caído | acceptance | `aud-02.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| AUD-03 | Publicación ambigua | acceptance | `aud-03.acceptance.spec.ts` | PENDIENTE; sin implementación |
-| AUD-04 | Consumidor reiniciado | acceptance | `aud-04.acceptance.spec.ts` | PENDIENTE; sin implementación |
+| AUD-03 | Publicación ambigua | acceptance | `tests/backend.test.cjs`| PARCIAL; deduplicación probada; falta caída entre confirm y update |
+| AUD-04 | Consumidor reiniciado | acceptance | `tests/backend.test.cjs`| PARCIAL; deduplicación probada; falta reinicio antes de ack |
 | AUD-05 | Fuera de orden | integration | `aud-05.integration.spec.ts` | PENDIENTE; sin implementación |
 | AUD-06 | Mensaje inválido | integration | `aud-06.integration.spec.ts` | PENDIENTE; sin implementación |
-| AUD-07 | Autorización de consulta | integration | `aud-07.integration.spec.ts` | PENDIENTE; sin implementación |
-| AUD-08 | Aislamiento SQL | integration | `aud-08.integration.spec.ts` | PENDIENTE; sin implementación |
+| AUD-07 | Autorización de consulta | integration | `tests/backend.test.cjs`| PARCIAL; recurso ajeno probado; falta caída de payments |
+| AUD-08 | Aislamiento SQL | integration | `tests/backend.test.cjs`| PARCIAL; tres denegaciones cruzadas probadas; ampliar combinaciones |
 | UI-01 | Doble clic y reintento | browser | `ui-01.browser.spec.ts` | PENDIENTE; sin implementación |
 | UI-02 | Seguimiento | browser | `ui-02.browser.spec.ts` | PENDIENTE; sin implementación |
 | UI-03 | Auditoría eventual | browser | `ui-03.browser.spec.ts` | PENDIENTE; sin implementación |
 | UI-04 | Tema y accesibilidad | browser | `ui-04.browser.spec.ts` | PENDIENTE; sin implementación |
 | UI-05 | Sesión expirada | browser | `ui-05.browser.spec.ts` | PENDIENTE; sin implementación |
-| OPS-01 | Arranque limpio | smoke | `ops-01.smoke.spec.ts` | PENDIENTE; sin implementación |
-| OPS-02 | Secretos y redes | smoke | `ops-02.smoke.spec.ts` | PENDIENTE; sin implementación |
+| OPS-01 | Arranque limpio | smoke | `tests/backend.test.cjs`| PARCIAL; backend Docker verificado; falta Compose completo con auxiliares |
+| OPS-02 | Secretos y redes | smoke | `tests/infrastructure.test.cjs`| PARCIAL; credenciales/redes backend probadas; falta browser integrado |
 | SDD-01 | Contrato primero | review | `sdd-01.review.spec.ts` | PENDIENTE; sin implementación |
+| API-01 | Swagger por servicio | contract | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 
-| API-01 | Swagger por servicio | contract | `swagger.contract.spec.ts` | PENDIENTE; sin implementación |
+## Evidencia ejecutable actual
+
+`pnpm test`: 3 unitarias + 13 integración/configuración, todas aprobadas. Se validan los responses HTTP de la suite contra OpenAPI. `IDEM-05` además se ejecutó aislado con trigger que falla en transfer.completed, después de escribir los movimientos, para demostrar rollback real de dinero/outbox/key. Los nombres antiguos de pruebas planeadas en filas pendientes no son archivos existentes.
+
+API-01 cubre UI/JSON Swagger de los tres servicios. Los tests bancarios usan un proveedor controlado de test; MOCK-01..03 e integración contra el mock de producción permanecen pendientes del auxiliar. Reinicios reales en ventanas de confirm/ack requieren pruebas adicionales aunque la deduplicación ya esté verificada.

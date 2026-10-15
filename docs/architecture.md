@@ -131,3 +131,7 @@ Un reverso tiene máquina independiente PENDING → PROCESSING → COMPLETED/FAI
 ## Swagger y API First
 
 Cada aplicación NestJS monta Swagger UI en /docs y JSON en /docs-json con @nestjs/swagger; carga el contrato raíz y filtra operaciones por su tag Auth/Payments/Audit, preservando components y security. No hay generación desde implementación que reemplace la fuente YAML. Dentro de Swagger usar server relativo /api/v1 para Try it out sobre el mismo servicio. Los servicios continúan privados en Compose/Dokploy.
+
+## Implementación backend actual
+
+AuthUseCases y Payments orquestan puertos de dominio. PgIdentityStore, PgUnitOfWork/PgTransaction y PgAuditStore son adapters TypeORM, con SQL parametrizado para locks, constraints y snapshots. Los workers de infraestructura gestionan leases/red y delegan liquidación de dinero a application/reconcile; el puerto BankRail separa el banco. backend-kit contiene únicamente infraestructura común (JWT guard, errores, conexión, validación y Swagger), nunca dominio compartido. Los tipos HTTP se generan en packages/api-client sin mezclar entidades de persistencia.

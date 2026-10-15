@@ -31,3 +31,11 @@ Esta fase solo entrega documentación. Añadir aquí por cada fase implementada 
 Se amplió AGENTS y se preparó un prompt con propiedad exclusiva de apps/rail-mock para otra sesión. No se despachó un auxiliar automáticamente. Se instaló la skill oficial Graphify a nivel de proyecto (0.9.62), con wrapper uvx fijado; la instalación global 0.8.20 queda intacta. El grafo combina AST nativo y estructura documental explícita, sin pasada semántica ni API keys.
 
 Durante verificación, el extractor AST devolvió imports externos sin nodo local; se hicieron explícitas y se omitieron esas referencias con conteo en manifiesto antes de validar. La consulta path por defecto respeta dirección incluso para relaciones documentales; el ejemplo de navegación se corrigió a --undirected y se verificó.
+
+## Implementación backend y Swagger
+
+El usuario reservó riel y frontend para agentes externos y pidió Swagger. Coordinador implementó auth/payments/audit, tipos generados, Compose backend, setup/migraciones/seeds y tests. No editó apps/web ni apps/rail-mock; sus handoffs siguen siendo la fuente de estado.
+
+Errores reales encontrados y corregidos: TypeORM UPDATE RETURNING devuelve [rows,count], no una fila directa; la primera suite falló y el rollback protegió dinero. La validación de responses contra OpenAPI encontró reversalStatus nullable sin null en enum. Un ajuste textual de Compose eliminó por error credenciales de audit; el arranque Docker lo detectó y se corrigió con edición estructurada y test de separación de credenciales. El puerto 3001 estaba ocupado y se eligieron puertos dev separados sin detener procesos ajenos.
+
+Comandos y resultados: pnpm test (3 unitarias, 13 integración/config, aprobadas); prueba focal de rollback después del débito aprobada; build Docker backend aprobado; Swagger/health de los tres servicios verificados. CI configurado, sin ejecución remota. Pendiente integración de auxiliares y más pruebas de reinicio/fallos de reverso.
