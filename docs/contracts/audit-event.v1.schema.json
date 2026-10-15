@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fluxone:audit-event:1",
+  "title": "Flux One audit event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "version",
+    "type",
+    "transferId",
+    "sequence",
+    "actorId",
+    "occurredAt",
+    "correlationId",
+    "data"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "version": {
+      "const": 1
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "transfer.created",
+        "transfer.processing",
+        "transfer.pending",
+        "transfer.unknown",
+        "transfer.completed",
+        "transfer.failed",
+        "reversal.requested",
+        "reversal.processing",
+        "reversal.pending",
+        "reversal.unknown",
+        "reversal.completed",
+        "reversal.failed",
+        "transfer.reversed"
+      ]
+    },
+    "transferId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "actorId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transferStatus",
+        "amount",
+        "currency",
+        "sourceAccountId",
+        "destinationKind",
+        "destinationCode",
+        "reversalId",
+        "reversalStatus"
+      ],
+      "properties": {
+        "transferStatus": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "PROCESSING",
+            "UNKNOWN",
+            "COMPLETED",
+            "FAILED",
+            "REVERSED"
+          ]
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$"
+        },
+        "currency": {
+          "const": "COP"
+        },
+        "sourceAccountId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "destinationKind": {
+          "type": "string",
+          "enum": [
+            "INTERNAL",
+            "EXTERNAL"
+          ]
+        },
+        "destinationCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64
+        },
+        "reversalId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "reversalStatus": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "PENDING",
+            "PROCESSING",
+            "UNKNOWN",
+            "COMPLETED",
+            "FAILED",
+            null
+          ]
+        }
+      }
+    }
+  }
+}

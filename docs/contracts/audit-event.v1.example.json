@@ -1,0 +1,20 @@
+{
+  "eventId": "11111111-1111-4111-8111-111111111111",
+  "version": 1,
+  "type": "transfer.completed",
+  "transferId": "22222222-2222-4222-8222-222222222222",
+  "sequence": 3,
+  "actorId": "33333333-3333-4333-8333-333333333333",
+  "occurredAt": "2026-10-15T14:00:00Z",
+  "correlationId": "demo-request-001",
+  "data": {
+    "transferStatus": "COMPLETED",
+    "amount": "1250.25",
+    "currency": "COP",
+    "sourceAccountId": "44444444-4444-4444-8444-444444444444",
+    "destinationKind": "EXTERNAL",
+    "destinationCode": "EXT-001",
+    "reversalId": null,
+    "reversalStatus": null
+  }
+}

@@ -95,7 +95,7 @@ sequenceDiagram
         P->>R: GET por referencia
         R-->>P: Resultado o 404
         P->>DB: TX: aplicar resultado confirmado
-        Note over P,R: Ante 404 reenviar misma referencia; nunca asumir rechazo
+        Note over P,R: Ante 404 reenviar misma referencia, nunca asumir rechazo
     end
 ```
 

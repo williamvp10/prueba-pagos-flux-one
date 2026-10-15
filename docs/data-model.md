@@ -34,7 +34,7 @@ erDiagram
 
 ## Tablas e índices críticos
 
-- accounts: UUID, `code` único (ACC-001 etc.), owner UUID, balance/reserved bigint, timestamps.
+- accounts: UUID, `code` único (ACC-001 etc.), owner UUID, role PRIMARY/SECONDARY, balance/reserved bigint, timestamps. Índice único owner/role; ACC-001 es PRIMARY de A y ACC-003 SECONDARY.
 - external_beneficiaries: códigos `EXT-001`, `EXT-002`, nombre, estado activo. Catálogo igual al mock; sin CRUD público v1.
 - transfers: UUID, actor, source FK local, destination kind/code, monto, moneda COP, estado, secuencia, referencia bancaria única, datos de lease y próximo intento, timestamps. FK destino solo para internas mediante columna nullable.
 - reversals: UUID, transferencia, actor, monto completo, estado, referencia bancaria única, lease/reintentos. Índice único parcial por transferencia para estados PENDING/PROCESSING/UNKNOWN/COMPLETED; FAILED permite un nuevo intento con nueva key.

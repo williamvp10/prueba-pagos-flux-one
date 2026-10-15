@@ -11,11 +11,13 @@ Monorepo planeado para un portal de pagos COP con arquitectura hexagonal, SDD, A
 | [Spec](docs/spec.md) | Reglas, criterios Given/When/Then y casos de fallo |
 | [Arquitectura](docs/architecture.md) | Servicios, puertos, límites y diagramas Mermaid |
 | [Modelo de datos](docs/data-model.md) | Propiedad, transacciones, locks e invariantes |
-| [API pública](docs/openapi.yaml) | Contrato auth, pagos y auditoría; fuente para el cliente |
+| [API browser](docs/browser.openapi.yaml) | Contrato frontend → BFF con cookies, sin tokens en body |
+| [API de servicios](docs/openapi.yaml) | Contrato privado auth, pagos y auditoría; cliente servidor generado |
 | [API del riel](docs/rail.openapi.yaml) | Los tres endpoints del mock y sus respuestas |
 | [Eventos](docs/events.md) | Outbox, contrato JSON Schema, reintentos y consumidor |
 | [Frontend](docs/frontend.md) | Pantallas, componentes shadcn, tema y estados |
 | [Despliegue](docs/deployment.md) | Compose, variables, redes, migraciones y Dokploy |
+| [Verificación documental](docs/verification.md) | Checks ejecutados y límites de evidencia |
 | [Pruebas y trazabilidad](docs/traceability.md) | Criterio → prueba planeada → evidencia pendiente |
 | [Plan de trabajo](docs/plan.md) | Orden, gates, trunk y checklist de entrega |
 | [Decisiones](docs/adr/README.md) | Registro de decisiones arquitectónicas |

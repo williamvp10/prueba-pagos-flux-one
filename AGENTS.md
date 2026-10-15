@@ -1,7 +1,7 @@
 # Reglas de implementación
 
 ## Fuentes y flujo SDD
-- Leer `docs/spec.md`, `docs/architecture.md`, `docs/openapi.yaml` y `docs/rail.openapi.yaml` antes de implementar.
+- Leer `docs/spec.md`, `docs/architecture.md`, `docs/openapi.yaml`, `docs/browser.openapi.yaml` y `docs/rail.openapi.yaml` antes de implementar.
 - Cambiar primero spec y contratos; después código y tests. Cada test de aceptación lleva el ID del criterio que demuestra.
 - La aclaración del evaluador autoriza construir el mock y definir sus responses; conservar exactamente los tres endpoints requeridos.
 - Trabajar en un solo monorepo, sobre `main`, con commits pequeños y verificables. No falsear fechas, resultados o trabajo manual.
