@@ -2,7 +2,7 @@
 
 ## Estado y prioridad
 
-Fase actual: documentación y contratos. Servicios, Compose y tests de aplicación todavía no existen. Prioridad: seguridad financiera y trazabilidad; después UI; finalmente despliegue real si hay tiempo. No payment links.
+Fase actual: documentación, contratos y tooling de contexto verificados; bootstrap de aplicaciones pendiente. Servicios, Compose y tests de aplicación todavía no existen. Prioridad: seguridad financiera y trazabilidad; después UI; finalmente despliegue real si hay tiempo. No payment links.
 
 Horario objetivo comunicado: 15-10-2026, 08:30–11:30 America/Bogota, con spec inicial antes de 09:00. El commit inicial real fue `890d03d`, a las 09:02:38 -05:00: el hito de las 09:00 no se cumplió. Conservar esa evidencia sin reescribir fechas.
 
@@ -36,3 +36,7 @@ Spec identificable + contrato actualizado si aplica + comportamiento implementad
 ## Entrega y sesión posterior
 
 README final debe decir qué corre, cómo probar en menos de cinco comandos, decisiones, supuestos, pendientes reales y qué haríamos con una hora más. Registrar uso de IA y al menos un error real corregido, sin inventar trabajo manual. Preparar explicación de un recorrido end-to-end: key → lock/reserva → banco → resultado → outbox → audit → UI.
+
+## Inicio con agente auxiliar
+
+Seguir docs/collaboration.md. El prompt docs/prompts/rail-mock-agent.md reserva el mock en apps/rail-mock; el coordinador conserva monorepo, infraestructura, contratos y pagos. No iniciar otro agente sobre esas rutas sin reasignación.

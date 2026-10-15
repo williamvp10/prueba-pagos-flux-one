@@ -23,6 +23,10 @@ Monorepo planeado para un portal de pagos COP con arquitectura hexagonal, SDD, A
 | [Decisiones](docs/adr/README.md) | Registro de decisiones arquitectónicas |
 | [Uso de IA](docs/ai-log.md) | Delegación, correcciones y pendientes reales |
 
+## Colaboración y contexto
+
+Leer [AGENTS.md](AGENTS.md) y [coordinación](docs/collaboration.md) antes de editar. El [prompt del agente auxiliar](docs/prompts/rail-mock-agent.md) reserva únicamente el mock bancario. [Graphify](docs/graphify.md) permite consultar contexto local con `./tools/graphify query "idempotencia" --budget 1200`; coordinador reconstruye con `./tools/graphify rebuild`.
+
 ## Stack decidido
 
 TypeScript, pnpm workspaces, NestJS, TypeORM, PostgreSQL, RabbitMQ, Next.js App Router, shadcn, Tailwind y TanStack Query. Mock bancario Node.js/TypeScript con SQLite persistente. Node 24 LTS como runtime objetivo; fijar versiones compatibles y lockfile durante bootstrap.

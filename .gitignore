@@ -10,3 +10,9 @@ coverage/
 .DS_Store
 playwright-report/
 test-results/
+
+# Local context graph and tooling caches
+graphify-out/
+.venv/
+__pycache__/
+*.pyc

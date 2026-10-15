@@ -25,3 +25,9 @@ No se ha registrado código escrito manualmente por el usuario. No atribuirle c�
 ## Evidencia y actualización
 
 Esta fase solo entrega documentación. Añadir aquí por cada fase implementada comandos/resultados importantes, decisiones nuevas y errores reales corregidos. No declarar tests de aplicación ejecutados mientras no existan aplicaciones ni suites.
+
+## Preparación de colaboración y contexto
+
+Se amplió AGENTS y se preparó un prompt con propiedad exclusiva de apps/rail-mock para otra sesión. No se despachó un auxiliar automáticamente. Se instaló la skill oficial Graphify a nivel de proyecto (0.9.62), con wrapper uvx fijado; la instalación global 0.8.20 queda intacta. El grafo combina AST nativo y estructura documental explícita, sin pasada semántica ni API keys.
+
+Durante verificación, el extractor AST devolvió imports externos sin nodo local; se hicieron explícitas y se omitieron esas referencias con conteo en manifiesto antes de validar. La consulta path por defecto respeta dirección incluso para relaciones documentales; el ejemplo de navegación se corrigió a --undirected y se verificó.
