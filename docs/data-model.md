@@ -1,5 +1,7 @@
 # Modelo de datos y consistencia
 
+El diagrama importable en dbdiagram.io está en [`database.dbml`](database.dbml). Incluye las tablas PostgreSQL por servicio y la base SQLite del rail mock como grupo visual separado; las notas describen índices parciales y referencias lógicas que DBML no puede representar como relaciones físicas.
+
 ## Propiedad
 
 | Esquema | Tablas objetivo | Rol runtime |

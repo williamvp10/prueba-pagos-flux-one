@@ -1,0 +1,171 @@
+Project FluxOne {
+  database_type: 'PostgreSQL'
+  Note: 'auth_schema, payment_schema y audit_schema son esquemas PostgreSQL. rail_mock representa una base SQLite independiente agrupada aquí solo para visualizarla junto con el sistema.'
+}
+
+// Identidad y sesiones. No se crean referencias entre este esquema y Payments:
+// owner_id y actor_id son identificadores lógicos de identidad.
+Table auth_schema.users {
+  id uuid [pk]
+  email text [not null, unique]
+  password_hash text [not null]
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table auth_schema.sessions {
+  id uuid [pk]
+  family uuid [not null]
+  user_id uuid [not null]
+  token_hash text [not null, unique]
+  expires_at timestamptz [not null]
+  revoked_at timestamptz
+  rotated_to uuid
+
+  indexes {
+    family [name: 'sessions_family']
+  }
+}
+
+// Cuentas, transferencias y ledger son propiedad del servicio Payments.
+Table payment_schema.accounts {
+  id uuid [pk]
+  code text [not null, unique]
+  owner_id uuid [not null, note: 'UUID lógico de auth_schema.users; sin FK entre servicios']
+  role text [not null, default: 'PRIMARY']
+  balance_minor bigint [not null, default: 0, note: 'Centavos COP; CHECK: 0 <= balance_minor <= 99999999999999']
+  reserved_minor bigint [not null, default: 0, note: 'Centavos COP; CHECK: 0 <= reserved_minor <= balance_minor']
+
+  indexes {
+    (owner_id, role) [unique]
+  }
+}
+
+Table payment_schema.external_beneficiaries {
+  code text [pk]
+  label text [not null]
+}
+
+Table payment_schema.transfers {
+  id uuid [pk]
+  actor_id uuid [not null, note: 'UUID lógico de auth_schema.users; sin FK entre servicios']
+  source_id uuid [not null]
+  destination_kind text [not null, note: 'CHECK: INTERNAL o EXTERNAL']
+  destination_code text [not null, note: 'Código de cuenta local o beneficiario externo; destino polimórfico, sin FK']
+  amount_minor bigint [not null, note: 'Centavos COP; CHECK: 0 < amount_minor <= 99999999999999']
+  status text [not null, note: 'CHECK: PENDING, PROCESSING, UNKNOWN, COMPLETED, FAILED o REVERSED']
+  sequence integer [not null, default: 0]
+  bank_reference uuid [not null, unique]
+  correlation_id text [not null]
+  failure_code text
+  lease_until timestamptz
+  lease_token uuid
+  attempts integer [not null, default: 0]
+  next_attempt_at timestamptz [not null, default: `now()`]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (created_at, id) [name: 'transfer_history', note: 'El índice real ordena ambas columnas DESC']
+    actor_id [name: 'transfer_actor']
+  }
+}
+
+Table payment_schema.reversals {
+  id uuid [pk]
+  transfer_id uuid [not null]
+  amount_minor bigint [not null, note: 'CHECK: amount_minor > 0']
+  status text [not null, note: 'CHECK: PENDING, PROCESSING, UNKNOWN, COMPLETED o FAILED']
+  bank_reference uuid [not null, unique]
+  failure_code text
+  lease_until timestamptz
+  lease_token uuid
+  attempts integer [not null, default: 0]
+  next_attempt_at timestamptz [not null, default: `now()`]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'Índice único parcial real one_live_reversal: transfer_id es único donde status IN (PENDING, PROCESSING, UNKNOWN, COMPLETED). FAILED permite un nuevo reverso.'
+}
+
+Table payment_schema.ledger_entries {
+  id uuid [pk]
+  operation_key text [not null, unique]
+  account_id uuid [not null]
+  direction text [not null, note: 'CHECK: DEBIT o CREDIT']
+  amount_minor bigint [not null, note: 'Centavos COP; CHECK: amount_minor > 0']
+  transfer_id uuid
+  reversal_id uuid
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table payment_schema.idempotency_records {
+  subject_id uuid [not null]
+  operation text [not null]
+  key text [not null]
+  payload_hash text [not null]
+  http_status integer [note: 'NULL mientras la solicitud está en curso']
+  response_body jsonb
+
+  indexes {
+    (subject_id, operation, key) [pk]
+  }
+}
+
+Table payment_schema.outbox_events {
+  event_id uuid [pk]
+  transfer_id uuid [not null]
+  sequence integer [not null]
+  payload jsonb [not null]
+  published_at timestamptz
+  attempts integer [not null, default: 0]
+  next_attempt_at timestamptz [not null, default: `now()`]
+  lease_until timestamptz
+  lease_token uuid
+
+  indexes {
+    (transfer_id, sequence) [unique]
+  }
+}
+
+// Auditoría persiste eventos recibidos. transfer_id es una referencia lógica
+// a Payments para conservar el aislamiento de datos entre servicios.
+Table audit_schema.audit_events {
+  event_id uuid [pk]
+  transfer_id uuid [not null, note: 'UUID lógico de payment_schema.transfers; sin FK entre servicios']
+  sequence integer [not null]
+  payload jsonb [not null]
+  received_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (transfer_id, sequence) [unique]
+  }
+}
+
+// Base SQLite independiente del servicio rail-mock. El esquema rail_mock es
+// solo una agrupación visual en este archivo DBML, no un schema SQLite.
+Table rail_mock.operations {
+  reference text [pk]
+  kind text [not null, note: "CHECK: 'transfer' o 'reversal'"]
+  payload_hash text [not null]
+  payload text [not null]
+  result text [not null, note: 'JSON serializado']
+  original_reference text
+  created_at text [not null, note: 'Fecha serializada como texto ISO']
+
+  indexes {
+    (original_reference, created_at) [name: 'operations_original_reference_idx', note: 'El índice real ordena created_at DESC']
+  }
+
+  Note: "Índice único parcial real accepted_reversal_per_transfer_idx: original_reference es único donde kind = 'reversal' y json_extract(result, '$.status') = 'ACCEPTED'."
+}
+
+// Foreign keys dentro del esquema Payments, según las migraciones.
+Ref: payment_schema.transfers.source_id > payment_schema.accounts.id
+Ref: payment_schema.reversals.transfer_id > payment_schema.transfers.id
+Ref: payment_schema.ledger_entries.account_id > payment_schema.accounts.id
+Ref: payment_schema.ledger_entries.transfer_id > payment_schema.transfers.id
+Ref: payment_schema.ledger_entries.reversal_id > payment_schema.reversals.id
+Ref: payment_schema.outbox_events.transfer_id > payment_schema.transfers.id
+
+// Foreign key dentro de Auth. Las referencias entre servicios quedan lógicas.
+Ref: auth_schema.sessions.user_id > auth_schema.users.id
