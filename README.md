@@ -79,6 +79,7 @@ La última ejecución de `pnpm test:all` pasó: 13 tests unitarios de Payments, 
 | [Uso de IA](docs/ai-log.md) | Delegación, integración y errores corregidos |
 | [Colaboración](docs/collaboration.md) | Reglas de ownership e integración para agentes |
 | [Graphify](docs/graphify.md) | Recuperación local del contexto del repo |
+| [Guía de sustentación](docs/guia-sustentacion.md) | Arquitectura, recorrido de pagos, demo y preguntas probables |
 
 ## Alcance y límites
 
