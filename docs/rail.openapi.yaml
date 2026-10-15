@@ -1,0 +1,303 @@
+---
+openapi: 3.0.3
+info:
+  title: Flux One simulated bank rail
+  version: 1.0.0
+  description: Mock construido por el equipo según aclaración del evaluador. Mantiene
+    los tres endpoints de la tabla. GET incluye el último intento de reverso.
+  license:
+    name: UNLICENSED
+servers:
+- url: http://rail-mock:3004
+security: []
+tags:
+- name: Rail
+  description: Banco simulado privado
+paths:
+  "/rail/transfers":
+    post:
+      operationId: createRailTransfer
+      tags:
+      - Rail
+      summary: createRailTransfer
+      description: 'Resultado aleatorio para referencia nueva; replay de resultado
+        persistido prevalece sobre azar. Timeout del consumidor a los 10 s: mock demora
+        12 s con o sin procesamiento. 503 no procesa.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateRailTransfer"
+      responses:
+        '200':
+          description: status ACCEPTED; operación persistida
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailTransfer"
+        '422':
+          description: status REJECTED; rechazo de negocio persistido sin movimiento
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailTransfer"
+        '400':
+          description: Payload malformado; no registra operación
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailError"
+        '409':
+          description: 'REFERENCE_CONFLICT: misma referencia con otro payload'
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailError"
+        '503':
+          description: RAIL_UNAVAILABLE; no registra ni procesa la operación
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailError"
+  "/rail/transfers/{reference}":
+    get:
+      operationId: getRailTransfer
+      tags:
+      - Rail
+      summary: Consultar transferencia y último reverso
+      description: Lectura sin azar sobre resultados persistidos. Ausencia de reverso
+        o reference diferente requiere conciliar/reintentar misma referencia, no acreditar
+        por deducción.
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          description: Referencia estable e idempotente, compartida por todos los
+            reintentos de esta operación
+      responses:
+        '200':
+          description: Transferencia y último resultado de reverso o null
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailTransfer"
+        '404':
+          description: REFERENCE_NOT_FOUND; no implica que un request en vuelo no
+            pueda llegar después
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailError"
+        '503':
+          description: No es posible consultar temporalmente
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailError"
+  "/rail/reversals":
+    post:
+      operationId: createRailReversal
+      tags:
+      - Rail
+      summary: createRailReversal
+      description: 'Resultado aleatorio para referencia nueva; replay de resultado
+        persistido prevalece sobre azar. Timeout del consumidor a los 10 s: mock demora
+        12 s con o sin procesamiento. 503 no procesa.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateRailReversal"
+      responses:
+        '200':
+          description: status ACCEPTED; operación persistida
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailReversal"
+        '422':
+          description: status REJECTED; rechazo de negocio persistido sin movimiento
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailReversal"
+        '400':
+          description: Payload malformado; no registra operación
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailError"
+        '409':
+          description: 'REFERENCE_CONFLICT: misma referencia con otro payload'
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailError"
+        '503':
+          description: RAIL_UNAVAILABLE; no registra ni procesa la operación
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RailError"
+components:
+  schemas:
+    MoneyInput:
+      type: string
+      pattern: "^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,2})?$"
+      example: '1250.25'
+      description: COP positivo, máximo 999999999999.99. Normalizar a dos decimales;
+        dominio valida > 0.
+    CreateRailTransfer:
+      type: object
+      additionalProperties: false
+      required:
+      - reference
+      - from
+      - to
+      - amount
+      properties:
+        reference:
+          type: string
+          format: uuid
+          description: Referencia estable e idempotente, compartida por todos los
+            reintentos de esta operación
+        from: '503'
+        to: '503'
+        amount:
+          "$ref": "#/components/schemas/MoneyInput"
+    CreateRailReversal:
+      type: object
+      additionalProperties: false
+      required:
+      - reference
+      - originalReference
+      - amount
+      properties:
+        reference:
+          type: string
+          format: uuid
+          description: Referencia estable e idempotente, compartida por todos los
+            reintentos de esta operación
+        originalReference:
+          type: string
+          format: uuid
+          description: Referencia estable e idempotente, compartida por todos los
+            reintentos de esta operación
+        amount:
+          "$ref": "#/components/schemas/MoneyInput"
+    RailOperation:
+      type: object
+      additionalProperties: false
+      required:
+      - reference
+      - status
+      - processedAt
+      - reason
+      properties:
+        reference:
+          type: string
+          format: uuid
+          description: Referencia estable e idempotente, compartida por todos los
+            reintentos de esta operación
+        status:
+          type: string
+          enum:
+          - ACCEPTED
+          - REJECTED
+        processedAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          nullable: true
+    RailReversal:
+      type: object
+      additionalProperties: false
+      required:
+      - reference
+      - originalReference
+      - amount
+      - status
+      - processedAt
+      - reason
+      properties:
+        reference:
+          type: string
+          format: uuid
+          description: Referencia estable e idempotente, compartida por todos los
+            reintentos de esta operación
+        originalReference:
+          type: string
+          format: uuid
+          description: Referencia estable e idempotente, compartida por todos los
+            reintentos de esta operación
+        amount:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$"
+          example: '1000000.00'
+        status:
+          type: string
+          enum:
+          - ACCEPTED
+          - REJECTED
+        processedAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          nullable: true
+    RailTransfer:
+      type: object
+      additionalProperties: false
+      required:
+      - reference
+      - from
+      - to
+      - amount
+      - status
+      - processedAt
+      - reason
+      - reversal
+      properties:
+        reference:
+          type: string
+          format: uuid
+          description: Referencia estable e idempotente, compartida por todos los
+            reintentos de esta operación
+        from: '503'
+        to: '503'
+        amount:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$"
+          example: '1000000.00'
+        status:
+          type: string
+          enum:
+          - ACCEPTED
+          - REJECTED
+        processedAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          nullable: true
+        reversal:
+          allOf:
+          - "$ref": "#/components/schemas/RailReversal"
+          nullable: true
+    RailError:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string

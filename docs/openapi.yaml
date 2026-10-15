@@ -1,0 +1,967 @@
+---
+openapi: 3.0.3
+info:
+  title: Flux One API
+  version: 1.0.0
+  description: Contrato API First de servicios privados. Cada servicio implementa
+    solo su tag. El BFF Next.js adapta auth a cookies y enruta solicitudes; no es
+    passthrough de tokens al navegador. No hay implementación todavía. JWT access
+    15 min y refresh 7 días.
+  license:
+    name: UNLICENSED
+servers:
+- url: http://payments:3002/api/v1
+  description: 'Payments: accounts, beneficiaries, transfers y reversals'
+- url: http://auth:3001/api/v1
+  description: 'Auth: /auth/*'
+- url: http://audit:3003/api/v1
+  description: 'Audit: /transfers/{transferId}/audit'
+tags:
+- name: Auth
+  description: Auth service
+- name: Payments
+  description: Payments service
+- name: Audit
+  description: Audit service
+security:
+- bearerAuth: []
+paths:
+  "/auth/register":
+    post:
+      operationId: register
+      tags:
+      - Auth
+      summary: Registrar usuario
+      description: Registrar usuario
+      responses:
+        '201':
+          description: Identidad creada; iniciar sesión y ejecutar bootstrap de cuenta
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+        '409':
+          "$ref": "#/components/responses/409"
+        '422':
+          "$ref": "#/components/responses/422"
+        '429':
+          "$ref": "#/components/responses/429"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Credentials"
+      security: []
+      servers:
+      - url: http://auth:3001/api/v1
+        description: 'Auth: /auth/*'
+  "/auth/login":
+    post:
+      operationId: login
+      tags:
+      - Auth
+      summary: Abrir sesión
+      description: Abrir sesión
+      responses:
+        '200':
+          description: Tokens para el BFF; nunca enviar refresh a JavaScript del navegador
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Tokens"
+        '401':
+          "$ref": "#/components/responses/401"
+        '422':
+          "$ref": "#/components/responses/422"
+        '429':
+          "$ref": "#/components/responses/429"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Credentials"
+      security: []
+      servers:
+      - url: http://auth:3001/api/v1
+        description: 'Auth: /auth/*'
+  "/auth/refresh":
+    post:
+      operationId: refresh
+      tags:
+      - Auth
+      summary: Rotar refresh y emitir access token
+      description: Rotar refresh y emitir access token
+      responses:
+        '200':
+          description: Rotación atómica; reutilización revoca familia
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Tokens"
+        '401':
+          "$ref": "#/components/responses/401"
+        '422':
+          "$ref": "#/components/responses/422"
+        '429':
+          "$ref": "#/components/responses/429"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/RefreshRequest"
+      security: []
+      servers:
+      - url: http://auth:3001/api/v1
+        description: 'Auth: /auth/*'
+  "/auth/logout":
+    post:
+      operationId: logout
+      tags:
+      - Auth
+      summary: Revocar familia de sesión
+      description: Revocar familia de sesión
+      responses:
+        '204':
+          description: Logout idempotente incluso si refresh ya está revocado
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/RefreshRequest"
+      security: []
+      servers:
+      - url: http://auth:3001/api/v1
+        description: 'Auth: /auth/*'
+  "/auth/me":
+    get:
+      operationId: getCurrentUser
+      tags:
+      - Auth
+      summary: Consultar identidad
+      description: Consultar identidad
+      responses:
+        '200':
+          description: Usuario autenticado
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+        '401':
+          "$ref": "#/components/responses/401"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      servers:
+      - url: http://auth:3001/api/v1
+        description: 'Auth: /auth/*'
+  "/accounts/bootstrap":
+    post:
+      operationId: bootstrapAccount
+      tags:
+      - Payments
+      summary: Provisionar cuenta del usuario autenticado
+      description: Sin body ni Idempotency-Key; unicidad por propietario/tipo garantiza
+        una cuenta principal. Demo A conserva sus dos cuentas seed. No crea saldo
+        inicial.
+      responses:
+        '201':
+          description: Cuenta en cero creada
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Account"
+        '200':
+          description: Cuenta principal ya existente
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Account"
+        '401':
+          "$ref": "#/components/responses/401"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      servers:
+      - url: http://payments:3002/api/v1
+        description: 'Payments: accounts, beneficiaries, transfers y reversals'
+  "/accounts":
+    get:
+      operationId: listAccounts
+      tags:
+      - Payments
+      summary: Listar cuentas propias
+      description: Listar cuentas propias
+      responses:
+        '200':
+          description: Sin efectos secundarios; lista vacía si falta bootstrap
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Account"
+        '401':
+          "$ref": "#/components/responses/401"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      servers:
+      - url: http://payments:3002/api/v1
+        description: 'Payments: accounts, beneficiaries, transfers y reversals'
+  "/beneficiaries":
+    get:
+      operationId: listBeneficiaries
+      tags:
+      - Payments
+      summary: Listar destinos internos y externos válidos
+      description: Listar destinos internos y externos válidos
+      responses:
+        '200':
+          description: Códigos y etiquetas públicas; sin propietarios, emails ni saldos
+            ajenos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  "$ref": "#/components/schemas/Beneficiary"
+        '401':
+          "$ref": "#/components/responses/401"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      servers:
+      - url: http://payments:3002/api/v1
+        description: 'Payments: accounts, beneficiaries, transfers y reversals'
+  "/transfers":
+    post:
+      operationId: createTransfer
+      tags:
+      - Payments
+      summary: Crear transferencia
+      description: Replay conserva status/body originales. Idempotencia por subject
+        + CREATE_TRANSFER + key. Decisiones de negocio definitivas consumen key. Validación/JWT
+        no. Consultar GET para estado actual.
+      responses:
+        '201':
+          description: Interna completada atómicamente
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Transfer"
+          headers:
+            Idempotency-Replayed:
+              description: true cuando se devuelve el resultado guardado
+              schema:
+                type: boolean
+        '202':
+          description: Externa persistida y reservada; resultado bancario pendiente
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Transfer"
+          headers:
+            Idempotency-Replayed:
+              description: true cuando se devuelve el resultado guardado
+              schema:
+                type: boolean
+        '400':
+          "$ref": "#/components/responses/400"
+        '401':
+          "$ref": "#/components/responses/401"
+        '404':
+          "$ref": "#/components/responses/404"
+        '409':
+          "$ref": "#/components/responses/409"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateTransfer"
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      servers:
+      - url: http://payments:3002/api/v1
+        description: 'Payments: accounts, beneficiaries, transfers y reversals'
+    get:
+      operationId: listTransfers
+      tags:
+      - Payments
+      summary: Historial propio como origen o destinatario interno
+      description: Historial propio como origen o destinatario interno
+      responses:
+        '200':
+          description: Orden createdAt DESC, id DESC; cursor opaco vinculado a filtros
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TransferPage"
+        '401':
+          "$ref": "#/components/responses/401"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 512
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - UNKNOWN
+          - COMPLETED
+          - FAILED
+          - REVERSED
+      servers:
+      - url: http://payments:3002/api/v1
+        description: 'Payments: accounts, beneficiaries, transfers y reversals'
+  "/transfers/{transferId}":
+    get:
+      operationId: getTransfer
+      tags:
+      - Payments
+      summary: Consultar estado actual y último reverso
+      description: Consultar estado actual y último reverso
+      responses:
+        '200':
+          description: Recurso visible para participante autorizado
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Transfer"
+        '401':
+          "$ref": "#/components/responses/401"
+        '404':
+          "$ref": "#/components/responses/404"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      parameters:
+      - name: transferId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      servers:
+      - url: http://payments:3002/api/v1
+        description: 'Payments: accounts, beneficiaries, transfers y reversals'
+  "/transfers/{transferId}/reversals":
+    post:
+      operationId: reverseTransfer
+      tags:
+      - Payments
+      summary: Solicitar reverso total
+      description: 'Sin body: el monto se deriva de la transferencia original. Solo
+        propietario del origen. Namespace CREATE_REVERSAL; transferId forma parte
+        del hash. Un máximo de un reverso activo/exitoso. Reintentar un reverso rechazado
+        requiere nueva key.'
+      responses:
+        '201':
+          description: Interno completado
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Reversal"
+          headers:
+            Idempotency-Replayed:
+              description: true cuando se devuelve el resultado guardado
+              schema:
+                type: boolean
+        '202':
+          description: Externo pendiente de confirmación
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Reversal"
+          headers:
+            Idempotency-Replayed:
+              description: true cuando se devuelve el resultado guardado
+              schema:
+                type: boolean
+        '400':
+          "$ref": "#/components/responses/400"
+        '401':
+          "$ref": "#/components/responses/401"
+        '404':
+          "$ref": "#/components/responses/404"
+        '409':
+          "$ref": "#/components/responses/409"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      parameters:
+      - name: transferId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      servers:
+      - url: http://payments:3002/api/v1
+        description: 'Payments: accounts, beneficiaries, transfers y reversals'
+  "/transfers/{transferId}/audit":
+    get:
+      operationId: getTransferAudit
+      tags:
+      - Audit
+      summary: Consultar auditoría autorizada de una transferencia
+      description: Audit comprueba permiso con GET de payments y JWT original antes
+        de leer su esquema. Si payments falla, devuelve 503; ajeno devuelve 404.
+      responses:
+        '200':
+          description: Puede estar vacío mientras llegan eventos. Orden sequence ASC;
+            cursor de secuencia.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AuditPage"
+        '401':
+          "$ref": "#/components/responses/401"
+        '404':
+          "$ref": "#/components/responses/404"
+        '422':
+          "$ref": "#/components/responses/422"
+        '500':
+          "$ref": "#/components/responses/500"
+        '503':
+          "$ref": "#/components/responses/503"
+      parameters:
+      - name: transferId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          maxLength: 512
+      servers:
+      - url: http://audit:3003/api/v1
+        description: 'Audit: /transfers/{transferId}/audit'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Una key por intención financiera. Persistir en reintentos; UUID
+        recomendado.
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9._:-]{1,128}$"
+        example: 7b149aee-0b55-4d4d-9a03-0762c9758b38
+  responses:
+    '400':
+      description: Header o request inválido
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/Error"
+    '401':
+      description: Sesión/token inválido
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/Error"
+    '404':
+      description: Recurso inexistente o sin permiso
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/Error"
+    '409':
+      description: Conflicto de negocio o idempotencia
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/Error"
+    '422':
+      description: Validación de datos
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/Error"
+    '429':
+      description: Rate limit
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/Error"
+      headers:
+        Retry-After:
+          description: Segundos sugeridos antes de reintentar
+          schema:
+            type: integer
+            minimum: 1
+    '500':
+      description: Error interno no confirmado; repetir con la misma key
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/Error"
+    '503':
+      description: Dependencia indisponible; repetir con la misma key
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/Error"
+      headers:
+        Retry-After:
+          description: Segundos sugeridos antes de reintentar
+          schema:
+            type: integer
+            minimum: 1
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      - requestId
+      properties:
+        code:
+          type: string
+          example: INSUFFICIENT_FUNDS
+        message:
+          type: string
+        requestId:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - field
+            - message
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    Credentials:
+      type: object
+      additionalProperties: false
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+    User:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - email
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+    Tokens:
+      type: object
+      additionalProperties: false
+      required:
+      - accessToken
+      - refreshToken
+      - tokenType
+      - expiresIn
+      - user
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+          enum:
+          - Bearer
+        expiresIn:
+          type: integer
+          enum:
+          - 900
+        user:
+          "$ref": "#/components/schemas/User"
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          minLength: 32
+          maxLength: 1024
+    Account:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - code
+      - currency
+      - balance
+      - reserved
+      - available
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          minLength: 3
+          maxLength: 64
+          example: ACC-002
+        currency:
+          type: string
+          enum:
+          - COP
+        balance:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$"
+          example: '1000000.00'
+        reserved:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$"
+          example: '1000000.00'
+        available:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$"
+          example: '1000000.00'
+    Beneficiary:
+      type: object
+      additionalProperties: false
+      required:
+      - kind
+      - code
+      - label
+      properties:
+        kind:
+          type: string
+          enum:
+          - INTERNAL
+          - EXTERNAL
+        code:
+          type: string
+          minLength: 3
+          maxLength: 64
+          example: ACC-002
+        label:
+          type: string
+    CreateTransfer:
+      type: object
+      additionalProperties: false
+      required:
+      - sourceAccountId
+      - destination
+      - amount
+      - currency
+      properties:
+        sourceAccountId:
+          type: string
+          format: uuid
+        destination:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          - code
+          properties:
+            kind:
+              type: string
+              enum:
+              - INTERNAL
+              - EXTERNAL
+            code:
+              type: string
+              minLength: 3
+              maxLength: 64
+              example: ACC-002
+        amount:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,2})?$"
+          example: '1250.25'
+          description: COP positivo, máximo 999999999999.99. Normalizar a dos decimales;
+            dominio valida > 0.
+        currency:
+          type: string
+          enum:
+          - COP
+    Reversal:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - transferId
+      - status
+      - amount
+      - failureCode
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        transferId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - UNKNOWN
+          - COMPLETED
+          - FAILED
+        amount:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$"
+          example: '1000000.00'
+        failureCode:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Transfer:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - sourceAccountId
+      - destination
+      - amount
+      - currency
+      - status
+      - failureCode
+      - reversal
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceAccountId:
+          type: string
+          format: uuid
+        destination:
+          "$ref": "#/components/schemas/Beneficiary"
+        amount:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$"
+          example: '1000000.00'
+        currency:
+          type: string
+          enum:
+          - COP
+        status:
+          type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - UNKNOWN
+          - COMPLETED
+          - FAILED
+          - REVERSED
+        failureCode:
+          type: string
+          nullable: true
+        reversal:
+          allOf:
+          - "$ref": "#/components/schemas/Reversal"
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    TransferPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/Transfer"
+        nextCursor:
+          type: string
+          nullable: true
+    AuditEntry:
+      type: object
+      additionalProperties: false
+      required:
+      - eventId
+      - transferId
+      - sequence
+      - type
+      - actorId
+      - occurredAt
+      - receivedAt
+      - correlationId
+      - transferStatus
+      - reversalId
+      - reversalStatus
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        transferId:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+          minimum: 1
+        type:
+          type: string
+        actorId:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        receivedAt:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+        transferStatus:
+          type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - UNKNOWN
+          - COMPLETED
+          - FAILED
+          - REVERSED
+        reversalId:
+          type: string
+          format: uuid
+          nullable: true
+        reversalStatus:
+          type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - UNKNOWN
+          - COMPLETED
+          - FAILED
+          nullable: true
+    AuditPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AuditEntry"
+        nextCursor:
+          type: string
+          nullable: true
+    Health:
+      type: object
+      additionalProperties: false
+      required:
+      - status
+      - service
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+          - degraded
+        service:
+          type: string
