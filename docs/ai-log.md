@@ -22,9 +22,9 @@ NestJS/TypeORM; Next.js/shadcn; API First; Docker Compose/Dokploy y un .env raí
 
 No se ha registrado código escrito manualmente por el usuario. No atribuirle código del agente. El usuario aportó objetivos, decisiones y aclaraciones del evaluador.
 
-## Evidencia y actualización
+## Evidencia inicial y actualización
 
-Esta fase solo entrega documentación. Añadir aquí por cada fase implementada comandos/resultados importantes, decisiones nuevas y errores reales corregidos. No declarar tests de aplicación ejecutados mientras no existan aplicaciones ni suites.
+La fase inicial solo entregaba documentación. Añadir aquí por cada fase implementada comandos/resultados importantes, decisiones nuevas y errores reales corregidos; no declarar pruebas que no se hayan ejecutado.
 
 ## Preparación de colaboración y contexto
 
@@ -45,3 +45,7 @@ Comandos y resultados de esa fase: pnpm test (3 unitarias, 13 integración/confi
 El usuario autorizó integrar las ramas `agent/rail-mock` y `codex/frontend-agent` a `main`. El coordinador revisó sus handoffs y diffs, repitió `npm test` del mock (8/8) y `pnpm test` del frontend (3/3), creó commits explícitos en cada rama y luego hizo cherry-pick a main. Los commits integrados son `e6462b9` (riel) y `8d0931b` (frontend). Sin cambios fuera de `apps/rail-mock/**`, `apps/web/**`, sus handoffs y archivos de coordinación/Compose.
 
 La integración encontró un `COPY src` incompatible con el contexto raíz de Compose para la imagen del mock; se ajustó a `apps/rail-mock/src`. La primera compilación TSX encontró un cierre JSX sobrante y el typecheck encontró captura de una promesa antes de inicializarla en el BFF; ambos se corrigieron. El primer healthcheck web encontró que Next guarda `server.js` bajo `apps/web/` en el artefacto standalone del monorepo; se corrigieron el comando y la ruta de assets. Se añadió Dockerfile standalone para Next, dependencias congeladas del workspace, healthchecks y orden de readiness para rail, APIs y portal. El primer smoke Compose encontró puertos host ocupados por procesos/servicios existentes; se parametrizaron los puertos de base de datos/broker y se dejó intacto el proyecto principal. El smoke aislado terminó con login HttpOnly, transferencia externa completada, reverso confirmado y cuatro eventos de auditoría visibles por el BFF.
+
+## Cobertura unitaria de reglas de pago
+
+Ante la solicitud del usuario de ampliar pruebas de reglas de negocio, se agregaron ocho casos unitarios para la liquidación de transferencias y reversos externos (aceptado, rechazado, indisponible e incierto), y dos casos de límites exactos para saldo disponible y crédito máximo. Los tests usan el runner integrado `node:test` y `node:assert/strict`; no se añadieron dependencias. `pnpm test:unit` pasó con 13/13 pruebas de Payments. `pnpm test:all` pasó también: Payments 13 unitarias + 13 integración/configuración, rail-mock 8, frontend 3, typecheck y build de producción. La suite de transición usa un `Transaction` fake para comprobar decisiones y efectos solicitados; PostgreSQL/RabbitMQ siguen cubriendo los comportamientos transaccionales y de integración.

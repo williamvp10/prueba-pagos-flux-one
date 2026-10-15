@@ -41,14 +41,14 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 | AUTH-08 | Protección de entrada | integration | `auth-08.integration.spec.ts` | PENDIENTE; sin implementación |
 | AUTH-09 | Bootstrap recuperable | acceptance | `auth-09.acceptance.spec.ts` | PENDIENTE; sin implementación |
 | PAY-01 | Interna exitosa entre usuarios demo | integration | `tests/backend.test.cjs`| VERIFICADO; `pnpm test:all` confirma A paga a C, cuentas separadas y transferencia visible al destinatario |
-| PAY-02 | Importe inválido | unit | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
-| PAY-03 | Sin fondos | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
+| PAY-02 | Importe inválido | unit + integration | `apps/payments/src/domain/money.spec.ts`, `tests/backend.test.cjs` | VERIFICADO backend; entradas inválidas cubiertas en unit y contrato HTTP en integración |
+| PAY-03 | Sin fondos | unit + integration | `apps/payments/src/domain/money.spec.ts`, `tests/backend.test.cjs` | VERIFICADO; límite exacto del disponible y un centavo por encima en unit; insuficiencia de fondos en integración |
 | PAY-04 | Origen y destino | integration | `tests/backend.test.cjs`| PARCIAL; misma cuenta probada; ampliar inexistentes |
 | PAY-05 | Concurrencia sobre saldo | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
-| PAY-06 | Exactitud decimal | unit | `tests/backend.test.cjs`| PARCIAL; aritmética exacta unitaria; ampliar compensación decimal HTTP |
+| PAY-06 | Exactitud decimal | unit | `apps/payments/src/domain/money.spec.ts` | PARCIAL; aritmética exacta unitaria; ampliar compensación decimal HTTP |
 | PAY-07 | Saldo y catálogo | integration | `tests/backend.test.cjs`| PARCIAL; saldos API usados en tests; catálogo pendiente de aceptación |
 | PAY-08 | Historial | integration | `tests/backend.test.cjs`| PARCIAL; cursor y filtros probados; ampliar exclusión de usuarios |
-| PAY-09 | Desborde del destinatario | integration | `tests/backend.test.cjs`| PARCIAL; guard unitario; falta rollback DB por overflow |
+| PAY-09 | Desborde del destinatario | unit + integration | `apps/payments/src/domain/money.spec.ts`, `tests/backend.test.cjs` | PARCIAL; crédito exacto al máximo y exceso de un centavo en unit; falta rollback DB por overflow |
 | IDEM-01 | Replay exacto | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | IDEM-02 | Payload distinto | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | IDEM-03 | Carrera de misma key | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
@@ -56,11 +56,11 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 | IDEM-05 | Caída antes de commit | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | IDEM-06 | Caída después de commit | integration | `idem-06.integration.spec.ts` | PENDIENTE; sin implementación |
 | IDEM-07 | Error de negocio consumido | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
-| RAIL-01 | Banco acepta | acceptance | `tests/backend.test.cjs` + smoke Compose/BFF | VERIFICADO; flujo completo payments → rail-mock → BFF aceptado |
-| RAIL-02 | Banco rechaza | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
-| RAIL-03 | Banco no disponible | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
-| RAIL-04 | Timeout procesado | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
-| RAIL-05 | Timeout no procesado | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` (proveedor HTTP de prueba; integración mock auxiliar pendiente) |
+| RAIL-01 | Banco acepta | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` + smoke Compose/BFF | VERIFICADO; liquidación unitaria y flujo completo payments → rail-mock → BFF aceptado |
+| RAIL-02 | Banco rechaza | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` | VERIFICADO backend; rechazo marca FAILED y libera reserva sin débito; integración usa proveedor HTTP controlado |
+| RAIL-03 | Banco no disponible | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` | VERIFICADO backend; indisponibilidad deja PENDING y conserva reserva; integración usa proveedor HTTP controlado |
+| RAIL-04 | Timeout procesado | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` | VERIFICADO; estado incierto conserva reserva; timeout procesado ejercitado por test de adaptador/integración |
+| RAIL-05 | Timeout no procesado | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` | VERIFICADO; estado incierto conserva reserva; timeout no procesado ejercitado por test de adaptador/integración |
 | RAIL-06 | Consulta indisponible | acceptance | `rail-06.acceptance.spec.ts` | PENDIENTE; sin implementación |
 | RAIL-07 | Worker reiniciado | acceptance | `rail-07.acceptance.spec.ts` | PENDIENTE; sin implementación |
 | RAIL-08 | Respuesta inesperada | contract | `rail-08.contract.spec.ts` | PENDIENTE; sin implementación |
@@ -71,10 +71,10 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 | REV-02 | Sin saldo para devolver | integration | `rev-02.integration.spec.ts` | PENDIENTE; sin implementación |
 | REV-03 | Estado incompatible | integration | `tests/backend.test.cjs`| PARCIAL; ya reversada probado; ampliar demás estados |
 | REV-04 | Carrera de reversos | integration | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
-| REV-05 | Reverso externo aceptado | acceptance | `tests/backend.test.cjs` + smoke Compose/BFF | VERIFICADO; backend y rail-mock confirmaron el reverso; auditoría emitió cuatro eventos |
-| REV-06 | Reverso externo rechazado | acceptance | `tests/backend.test.cjs`| PARCIAL; implementado; falta test de rechazo del reverso |
-| REV-07 | Reverso externo indisponible | acceptance | `tests/backend.test.cjs`| PARCIAL; implementado; falta test de 503 del reverso |
-| REV-08 | Reverso externo ambiguo | acceptance | `tests/backend.test.cjs`| PARCIAL; implementado; falta timeout específico de reverso |
+| REV-05 | Reverso externo aceptado | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` + smoke Compose/BFF | VERIFICADO; acredita origen y completa transferencia/reverso; integración confirmó cuatro eventos de auditoría |
+| REV-06 | Reverso externo rechazado | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` | PARCIAL; unit cubre rechazo sin acreditar; falta escenario de rechazo específico del adaptador de reverso |
+| REV-07 | Reverso externo indisponible | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` | PARCIAL; unit cubre PENDING; falta escenario HTTP 503 específico del reverso |
+| REV-08 | Reverso externo ambiguo | unit + acceptance | `apps/payments/src/application/reconcile.spec.ts`, `tests/backend.test.cjs` | PARCIAL; unit cubre UNKNOWN; falta timeout específico del reverso |
 | REV-09 | Permiso y monto del reverso | contract | `rev-09.contract.spec.ts` | PENDIENTE; sin implementación |
 | AUD-01 | Eventos completos | acceptance | `tests/backend.test.cjs`| VERIFICADO backend; `pnpm test` |
 | AUD-02 | Broker caído | acceptance | `aud-02.acceptance.spec.ts` | PENDIENTE; sin implementación |
@@ -96,6 +96,6 @@ No sustituir PostgreSQL por SQLite/in-memory para pruebas de concurrencia. SQLit
 
 ## Evidencia ejecutable actual
 
-`pnpm test`: 3 unitarias + 13 integración/configuración, todas aprobadas. Se validan los responses HTTP de la suite contra OpenAPI. `IDEM-05` además se ejecutó aislado con trigger que falla en transfer.completed, después de escribir los movimientos, para demostrar rollback real de dinero/outbox/key. Los nombres antiguos de pruebas planeadas en filas pendientes no son archivos existentes.
+`pnpm test`: 13 unitarias de Payments (5 de dinero y 8 de transiciones) + 13 de integración/configuración, todas aprobadas. Se validan los responses HTTP de la suite contra OpenAPI. `IDEM-05` además se ejecutó aislado con trigger que falla en transfer.completed, después de escribir los movimientos, para demostrar rollback real de dinero/outbox/key. Los nombres antiguos de pruebas planeadas en filas pendientes no son archivos existentes.
 
 API-01 cubre UI/JSON Swagger de los tres servicios. Los tests bancarios usan un proveedor controlado de test; MOCK-01..03 están verificados con la suite propia del mock, y RAIL-01/REV-05 cuentan además con smoke integrado contra el mock en Compose. RAIL-02..05 comprueban backend con proveedor controlado, pero falta repetir esos escenarios específicos a través del rail-mock integrado. Reinicios reales en ventanas de confirm/ack requieren pruebas adicionales aunque la deduplicación ya esté verificada.

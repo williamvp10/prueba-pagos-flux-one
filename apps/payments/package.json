@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/bootstrap/main.js",
-    "test": "node --test dist/domain/*.spec.js"
+    "test": "node --test dist/domain/*.spec.js dist/application/*.spec.js"
   },
   "dependencies": {
     "@fluxone/backend-kit": "workspace:*",

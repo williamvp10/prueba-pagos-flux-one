@@ -19,5 +19,12 @@ test("[PAY-02] reject malformed, negative, zero and over-precision money", () =>
 });
 test("[PAY-03][PAY-09] reserved money cannot be spent and credit cannot overflow", () => {
   assert.throws(() => ensureFunds(10000n, 8000n, 3000n));
-  assert.throws(() => ensureCredit(MAX_MONEY, 1n));
+});
+test("[PAY-03] exact available balance can be spent, but one cent more cannot", () => {
+  ensureFunds(10000n, 2500n, 7500n);
+  assert.throws(() => ensureFunds(10000n, 2500n, 7501n));
+});
+test("[PAY-09] credit can reach the maximum balance exactly, but not exceed it", () => {
+  ensureCredit(MAX_MONEY - 500n, 500n);
+  assert.throws(() => ensureCredit(MAX_MONEY - 500n, 501n));
 });

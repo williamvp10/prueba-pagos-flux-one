@@ -44,7 +44,7 @@ El commit inicial 890d03d se creó a las 09:02:38 -05:00, después del hito de 0
 ## Backend implementado y verificado
 
 - `pnpm contracts`: tipos de servicios y browser generados y exportados en @fluxone/api-client.
-- `pnpm test`: build de kit y tres servicios, 3 unitarias y 13 tests de integración/configuración aprobados. Respuestas HTTP de la suite verificadas contra el contrato fuente.
+- `pnpm test`: build de kit y tres servicios, 13 unitarias de Payments (dinero y conciliación) y 13 tests de integración/configuración aprobados. Respuestas HTTP de la suite verificadas contra el contrato fuente.
 - `node --test --test-name-pattern=IDEM-05 tests/backend.test.cjs`: rollback tras escribir débito/crédito y fallar outbox de completed, aprobado.
 - PostgreSQL/RabbitMQ reales en Docker; DB y vhost de test exclusivos se crean y eliminan. Simulador HTTP bancario exclusivamente de test; no sustituye el servicio delegado.
 - `docker compose config --quiet`: configuración válida. `docker compose build auth`: imagen backend construida con los tres servicios. Arranque dirigido a auth/payments/audit ejecuta init, migraciones y seed. Swagger y salud dev 3101/3102/3103 responden 200.
@@ -67,7 +67,7 @@ Correcciones verificadas: normalización del resultado UPDATE RETURNING de TypeO
 - Dokploy está documentado para usar Compose (no Stack), dominio nativo en el servicio `web` con destino 3000, HTTPS y variables del editor Environment. Su integración agrega labels y red de Traefik al servicio elegido; las variables Compose se mapean explícitamente a cada contenedor.
 - El seed añade Demo C y asigna A/B/C a ACC-001/002/003. Al actualizar un volumen existente, mueve ACC-003 solo si aún pertenece a A como SECONDARY; conserva saldo y ledger. El `.env` local ya tiene credenciales C; `.env.example` y `tools/setup-env.mjs` contemplan las tres identidades sin versionar secretos.
 - Stack local reconstruido con Compose base y dev override; servicios healthy. Los logins BFF de A/B/C dieron 200 y cada usuario recibió una sola cuenta. Los saldos ya existentes se conservaron.
-- `pnpm test:all` pasó tras el cambio: 3 pruebas unitarias de backend, 13 de integración/configuración, 8 del mock, 3 del frontend, typecheck y build de Next.js.
+- `pnpm test:all` pasó tras el cambio: 13 pruebas unitarias de Payments, 13 de integración/configuración, 8 del mock, 3 del frontend, typecheck y build de Next.js. Las ocho nuevas de `reconcile.spec.ts` comprueban liquidación externa y reversos aceptados, rechazados, pendientes e inciertos; dos casos adicionales validan límites exactos de saldo disponible y crédito máximo.
 
 Límites: no se hizo una prueba automatizada en navegador ni revisión visual completa de tema claro/oscuro; UI-01..05 siguen pendientes de evidencia browser. El mock valida sintaxis/runtime de type stripping, no tipos TypeScript semánticos. CI remoto sigue pendiente.
 

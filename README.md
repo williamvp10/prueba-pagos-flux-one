@@ -57,7 +57,7 @@ pnpm test
 pnpm test:all
 ```
 
-La última ejecución documentada de `pnpm test:all` pasó: pruebas backend, 8 pruebas del mock, typecheck, pruebas unitarias del frontend y build Next.js de producción. También se validó un smoke aislado de Compose con login por BFF, transferencia externa completada, reverso confirmado y eventos de auditoría consultables. La matriz de [trazabilidad](docs/traceability.md) identifica qué criterios tienen prueba completa y cuáles conservan cobertura parcial o pendiente; [verificación](docs/verification.md) contiene el detalle y los límites de evidencia. El workflow de CI está configurado, pero aún no hay evidencia de una ejecución remota en GitHub.
+La última ejecución de `pnpm test:all` pasó: 13 tests unitarios de Payments, 13 de integración/configuración, 8 del mock, 3 unitarios de montos del frontend, typecheck y build Next.js de producción. También se validó un smoke aislado de Compose con login por BFF, transferencia externa completada, reverso confirmado y eventos de auditoría consultables. La matriz de [trazabilidad](docs/traceability.md) identifica qué criterios tienen prueba completa y cuáles conservan cobertura parcial o pendiente; [verificación](docs/verification.md) contiene el detalle y los límites de evidencia. El workflow de CI está configurado, pero aún no hay evidencia de una ejecución remota en GitHub.
 
 ## Documentación
 
