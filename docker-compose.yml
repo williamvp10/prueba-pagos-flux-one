@@ -1,0 +1,330 @@
+---
+name: fluxone
+services:
+  postgres:
+    image: postgres:17.6-bookworm
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+    networks:
+    - private
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  rabbitmq:
+    image: rabbitmq:4.1.4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD}"
+    volumes:
+    - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+    - private
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - rabbitmq-diagnostics
+      - "-q"
+      - ping
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  init-db:
+    image: fluxone-backend:local
+    build:
+      context: "."
+      dockerfile: infra/backend.Dockerfile
+    command:
+    - node
+    - tools/init-db.cjs
+    environment:
+      NODE_ENV: "${NODE_ENV:-production}"
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      POSTGRES_DB: "${POSTGRES_DB}"
+      AUTH_DB_USER: "${AUTH_DB_USER}"
+      AUTH_DB_PASSWORD: "${AUTH_DB_PASSWORD}"
+      AUTH_MIGRATION_USER: "${AUTH_MIGRATION_USER}"
+      AUTH_MIGRATION_PASSWORD: "${AUTH_MIGRATION_PASSWORD}"
+      PAYMENTS_DB_USER: "${PAYMENTS_DB_USER}"
+      PAYMENTS_DB_PASSWORD: "${PAYMENTS_DB_PASSWORD}"
+      PAYMENTS_MIGRATION_USER: "${PAYMENTS_MIGRATION_USER}"
+      PAYMENTS_MIGRATION_PASSWORD: "${PAYMENTS_MIGRATION_PASSWORD}"
+      AUDIT_DB_USER: "${AUDIT_DB_USER}"
+      AUDIT_DB_PASSWORD: "${AUDIT_DB_PASSWORD}"
+      AUDIT_MIGRATION_USER: "${AUDIT_MIGRATION_USER}"
+      AUDIT_MIGRATION_PASSWORD: "${AUDIT_MIGRATION_PASSWORD}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    networks:
+    - private
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+  migrate-auth:
+    image: fluxone-backend:local
+    build:
+      context: "."
+      dockerfile: infra/backend.Dockerfile
+    command:
+    - node
+    - tools/migrate.cjs
+    - auth
+    environment:
+      NODE_ENV: "${NODE_ENV:-production}"
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      POSTGRES_DB: "${POSTGRES_DB}"
+      AUTH_MIGRATION_USER: "${AUTH_MIGRATION_USER}"
+      AUTH_MIGRATION_PASSWORD: "${AUTH_MIGRATION_PASSWORD}"
+    networks:
+    - private
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+    restart: 'no'
+  auth:
+    image: fluxone-backend:local
+    build:
+      context: "."
+      dockerfile: infra/backend.Dockerfile
+    command:
+    - node
+    - tools/run-service.cjs
+    - auth
+    environment:
+      NODE_ENV: "${NODE_ENV:-production}"
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      POSTGRES_DB: "${POSTGRES_DB}"
+      AUTH_DB_USER: "${AUTH_DB_USER}"
+      AUTH_DB_PASSWORD: "${AUTH_DB_PASSWORD}"
+      JWT_PUBLIC_KEY_B64: "${JWT_PUBLIC_KEY_B64}"
+      JWT_ISSUER: "${JWT_ISSUER}"
+      JWT_AUDIENCE: "${JWT_AUDIENCE}"
+      SERVICE_NAME: auth
+      JWT_PRIVATE_KEY_B64: "${JWT_PRIVATE_KEY_B64}"
+    networks:
+    - private
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - "-e"
+      - fetch('http://localhost:3001/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate-payments:
+    image: fluxone-backend:local
+    build:
+      context: "."
+      dockerfile: infra/backend.Dockerfile
+    command:
+    - node
+    - tools/migrate.cjs
+    - payments
+    environment:
+      NODE_ENV: "${NODE_ENV:-production}"
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      POSTGRES_DB: "${POSTGRES_DB}"
+      PAYMENTS_MIGRATION_USER: "${PAYMENTS_MIGRATION_USER}"
+      PAYMENTS_MIGRATION_PASSWORD: "${PAYMENTS_MIGRATION_PASSWORD}"
+    networks:
+    - private
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+    restart: 'no'
+  payments:
+    image: fluxone-backend:local
+    build:
+      context: "."
+      dockerfile: infra/backend.Dockerfile
+    command:
+    - node
+    - tools/run-service.cjs
+    - payments
+    environment:
+      NODE_ENV: "${NODE_ENV:-production}"
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      POSTGRES_DB: "${POSTGRES_DB}"
+      PAYMENTS_DB_USER: "${PAYMENTS_DB_USER}"
+      PAYMENTS_DB_PASSWORD: "${PAYMENTS_DB_PASSWORD}"
+      JWT_PUBLIC_KEY_B64: "${JWT_PUBLIC_KEY_B64}"
+      JWT_ISSUER: "${JWT_ISSUER}"
+      JWT_AUDIENCE: "${JWT_AUDIENCE}"
+      SERVICE_NAME: payments
+      AMQP_HOST: rabbitmq
+      AMQP_PORT: '5672'
+      RABBITMQ_USER: "${RABBITMQ_USER}"
+      RABBITMQ_PASSWORD: "${RABBITMQ_PASSWORD}"
+      RAIL_API_URL: http://rail-mock:3004
+      WORKERS_ENABLED: "${WORKERS_ENABLED:-true}"
+    networks:
+    - private
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - "-e"
+      - fetch('http://localhost:3002/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate-audit:
+    image: fluxone-backend:local
+    build:
+      context: "."
+      dockerfile: infra/backend.Dockerfile
+    command:
+    - node
+    - tools/migrate.cjs
+    - audit
+    environment:
+      NODE_ENV: "${NODE_ENV:-production}"
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      POSTGRES_DB: "${POSTGRES_DB}"
+      AUDIT_MIGRATION_USER: "${AUDIT_MIGRATION_USER}"
+      AUDIT_MIGRATION_PASSWORD: "${AUDIT_MIGRATION_PASSWORD}"
+    networks:
+    - private
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+    restart: 'no'
+  audit:
+    image: fluxone-backend:local
+    build:
+      context: "."
+      dockerfile: infra/backend.Dockerfile
+    command:
+    - node
+    - tools/run-service.cjs
+    - audit
+    environment:
+      NODE_ENV: "${NODE_ENV:-production}"
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      POSTGRES_DB: "${POSTGRES_DB}"
+      JWT_PUBLIC_KEY_B64: "${JWT_PUBLIC_KEY_B64}"
+      JWT_ISSUER: "${JWT_ISSUER}"
+      JWT_AUDIENCE: "${JWT_AUDIENCE}"
+      SERVICE_NAME: audit
+      AMQP_HOST: rabbitmq
+      AMQP_PORT: '5672'
+      RABBITMQ_USER: "${RABBITMQ_USER}"
+      RABBITMQ_PASSWORD: "${RABBITMQ_PASSWORD}"
+      PAYMENTS_API_URL: http://payments:3002/api/v1
+      AUDIT_DB_USER: "${AUDIT_DB_USER}"
+      AUDIT_DB_PASSWORD: "${AUDIT_DB_PASSWORD}"
+    networks:
+    - private
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - "-e"
+      - fetch('http://localhost:3003/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  seed:
+    image: fluxone-backend:local
+    build:
+      context: "."
+      dockerfile: infra/backend.Dockerfile
+    command:
+    - node
+    - tools/seed.cjs
+    environment:
+      NODE_ENV: "${NODE_ENV:-production}"
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      POSTGRES_DB: "${POSTGRES_DB}"
+      AUTH_DB_USER: "${AUTH_DB_USER}"
+      AUTH_DB_PASSWORD: "${AUTH_DB_PASSWORD}"
+      PAYMENTS_DB_USER: "${PAYMENTS_DB_USER}"
+      PAYMENTS_DB_PASSWORD: "${PAYMENTS_DB_PASSWORD}"
+      DEMO_A_ID: "${DEMO_A_ID}"
+      DEMO_A_EMAIL: "${DEMO_A_EMAIL}"
+      DEMO_A_PASSWORD: "${DEMO_A_PASSWORD}"
+      DEMO_B_ID: "${DEMO_B_ID}"
+      DEMO_B_EMAIL: "${DEMO_B_EMAIL}"
+      DEMO_B_PASSWORD: "${DEMO_B_PASSWORD}"
+    networks:
+    - private
+    depends_on:
+      migrate-auth:
+        condition: service_completed_successfully
+      migrate-payments:
+        condition: service_completed_successfully
+      migrate-audit:
+        condition: service_completed_successfully
+    restart: 'no'
+  rail-mock:
+    build:
+      context: "."
+      dockerfile: apps/rail-mock/Dockerfile
+    environment:
+      PORT: '3004'
+      RAIL_MODE: "${RAIL_MODE:-random}"
+      RAIL_SCENARIOS: "${RAIL_SCENARIOS:-accepted}"
+      RAIL_DB_PATH: "/data/rail.sqlite"
+    volumes:
+    - rail_data:/data
+    networks:
+    - private
+    restart: unless-stopped
+  web:
+    build:
+      context: "."
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NODE_ENV: production
+      APP_ORIGIN: "${APP_ORIGIN}"
+      AUTH_API_URL: http://auth:3001/api/v1
+      PAYMENTS_API_URL: http://payments:3002/api/v1
+      AUDIT_API_URL: http://audit:3003/api/v1
+    ports:
+    - "${WEB_PORT:-3000}:3000"
+    networks:
+    - private
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_healthy
+      payments:
+        condition: service_healthy
+networks:
+  private:
+    driver: bridge
+volumes:
+  postgres_data: {}
+  rabbitmq_data: {}
+  rail_data: {}

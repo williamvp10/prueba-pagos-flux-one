@@ -1004,6 +1004,7 @@ components:
           - UNKNOWN
           - COMPLETED
           - FAILED
+          -
           nullable: true
     AuditPage:
       type: object

@@ -1,0 +1,17 @@
+---
+services:
+  postgres:
+    ports:
+    - 127.0.0.1:15432:5432
+  rabbitmq:
+    ports:
+    - 127.0.0.1:15672:5672
+  auth:
+    ports:
+    - 127.0.0.1:${AUTH_DEV_PORT:-3101}:3001
+  payments:
+    ports:
+    - 127.0.0.1:${PAYMENTS_DEV_PORT:-3102}:3002
+  audit:
+    ports:
+    - 127.0.0.1:${AUDIT_DEV_PORT:-3103}:3003

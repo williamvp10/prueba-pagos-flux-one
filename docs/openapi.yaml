@@ -5,7 +5,7 @@ info:
   version: 1.0.0
   description: Contrato API First de servicios privados. Cada servicio implementa
     solo su tag. El BFF Next.js adapta auth a cookies y enruta solicitudes; no es
-    passthrough de tokens al navegador. No hay implementación todavía. JWT access
+    passthrough de tokens al navegador. Backend implementado; cobertura en docs/traceability.md. JWT access
     15 min y refresh 7 días.
   license:
     name: UNLICENSED
@@ -980,6 +980,7 @@ components:
           - UNKNOWN
           - COMPLETED
           - FAILED
+          -
           nullable: true
     AuditPage:
       type: object

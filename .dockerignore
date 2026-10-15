@@ -1,0 +1,9 @@
+.git
+node_modules
+**/node_modules
+**/dist
+**/.next
+graphify-out
+.env
+.env.*
+!.env.example

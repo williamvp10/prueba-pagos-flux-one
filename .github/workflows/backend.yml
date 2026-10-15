@@ -1,0 +1,24 @@
+name: Backend core
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.11.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node tools/setup-env.mjs
+      - run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres rabbitmq
+      - run: pnpm contracts && git diff --exit-code -- packages/api-client/src
+      - run: pnpm test
+      - if: failure()
+        run: docker compose logs --tail 80 postgres rabbitmq
+      - if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down
