@@ -9,8 +9,8 @@ export function ConfirmDialog({ open, onOpenChange, title, description, confirmL
         <AlertDialogPrimitive.Title className="text-lg font-semibold">{title}</AlertDialogPrimitive.Title>
         <AlertDialogPrimitive.Description className="mt-2 text-sm leading-6 text-muted-foreground">{description}</AlertDialogPrimitive.Description>
         <div className="mt-6 flex justify-end gap-3">
-          <AlertDialogPrimitive.Cancel disabled={busy} className="h-10 rounded-lg border px-4 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">Cancelar</AlertDialogPrimitive.Cancel>
-          <AlertDialogPrimitive.Action disabled={busy} className="h-10 rounded-lg bg-destructive px-4 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" onClick={(event) => { event.preventDefault(); onConfirm(); }}>{busy ? "Procesando…" : confirmLabel}</AlertDialogPrimitive.Action>
+          <AlertDialogPrimitive.Cancel disabled={busy} className="min-h-11 rounded-lg border px-4 text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">Cancelar</AlertDialogPrimitive.Cancel>
+          <AlertDialogPrimitive.Action disabled={busy} className="min-h-11 rounded-lg bg-destructive px-4 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" onClick={(event) => { event.preventDefault(); onConfirm(); }}>{busy ? "Procesando…" : confirmLabel}</AlertDialogPrimitive.Action>
         </div>
       </AlertDialogPrimitive.Content>
     </AlertDialogPrimitive.Portal>

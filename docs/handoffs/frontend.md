@@ -77,3 +77,28 @@ En desarrollo fuera de Compose se reemplazan los hosts de servicios por `localho
 ## Límite de verificación
 
 No se ejecutó un recorrido automatizado de navegador ni revisión visual de todos los estados claro/oscuro. Los tests actuales cubren dinero y el smoke integrado cubre BFF/servicios; los criterios UI-01..05 permanecen pendientes de evidencia browser.
+
+## Iteración links QR
+
+Estado: READY_FOR_REVIEW. Implementación frontend lista para revisión en worktree `codex/payment-links-qr`. Instalé `qrcode` y `@types/qrcode` dentro del worktree con `pnpm install --filter @fluxone/web`; el `pnpm-lock.yaml` de esta rama incluye esos paquetes. El branch requiere integrar los `BrowserComponents` nuevos que el coordinador mantiene pendientes en el checkout principal antes de compilar por sí solo.
+
+### Rutas y cobertura
+
+- `apps/web/src/app/(portal)/payment-links/page.tsx` y `src/components/payment-links-page.tsx`: listado propio con filtro/continuación por cursor, creación COP con revisión, key/payload de intención en `sessionStorage` y recuperación con la misma key.
+- `apps/web/src/app/(portal)/payment-links/[id]/page.tsx`: estado vivo, destino, monto/vencimiento, token solo en memoria para `${origin}/pay#token`, QR con zona blanca, copiar/descargar PNG y cancelación confirmada/idempotente.
+- `apps/web/src/app/pay/page.tsx`: ruta fuera de PortalShell; consume y limpia fragmento, login inline, bootstrap recuperable, resumen mínimo, selección de cuenta, confirmación y recuperación de pago. Un 201 abre el detalle de la transferencia.
+- `apps/web/src/app/api/v1/[...path]/route.ts`, `src/lib/api.ts`, `src/components/portal-shell.tsx`: whitelist exclusiva de rutas contractuales, destino payments, no redirección opcional para `/pay` y navegación “Cobros”.
+- `apps/web/src/lib/payment-links.ts` y `apps/web/tests/payment-links.test.ts`: validación/limpieza de fragmento, link canónico, intención sin token, mapeo seguro de errores y canonicalización COP.
+- Dependencias: `qrcode@^1.5.4` y `@types/qrcode@^1.5.5`, declaradas en `apps/web/package.json` e instaladas en el worktree; el lockfile de la rama quedó actualizado.
+
+Criterios abordados: UI-06..09; LINK-01, 02, 03, 05, 06 y 07 por el flujo browser conforme al contrato. UI-08 trata 201 como éxito único y conserva key/payload ante fallos técnicos; el token nunca se incluye en storage ni en errores. El BFF conserva bearer cookie, Origin check, `Idempotency-Key` y `private, no-store`.
+
+### Verificación ejecutada
+
+- `pnpm --dir apps/web test` — pasó, 9/9 pruebas (dinero existente y casos de fragmento, intención, errores y canonicalización).
+- `pnpm install --filter @fluxone/web` — pasó en el worktree; el lockfile quedó actualizado con las dos dependencias QR.
+- `pnpm --filter @fluxone/web typecheck` — pasó con la dependencia real y los `BrowserComponents` actualizados del checkout del coordinador, copiados temporalmente para verificar la integración. Restauré el archivo generado al estado base al terminar; volver a ejecutar tras integrar los tipos contractuales.
+- `pnpm --filter @fluxone/web build` — pasó con Next.js 16.4.1 usando la misma fuente tipada temporal; repetir tras integrar los tipos contractuales.
+- No se ejecutó journey de navegador ni verificación visual de breakpoints/temas/zoom; no se reporta como evidencia.
+
+Pendiente de integración: incorporar a esta rama el cliente generado desde `docs/browser.openapi.yaml` cuando el coordinador publique sus cambios de contrato, volver a correr typecheck/build sin fuentes temporales, verificar BFF/Compose con el backend de links y ejecutar revisión visual/browser antes de integrar a `main`.

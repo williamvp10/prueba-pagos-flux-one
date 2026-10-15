@@ -13,7 +13,7 @@ const refreshInFlight = new Map<string, Promise<Tokens | null>>();
 function upstreamFor(path: string): string | null {
   if (path.startsWith("/auth/")) return process.env.AUTH_API_URL ?? null;
   if (/^\/transfers\/[0-9a-f-]{36}\/audit$/i.test(path)) return process.env.AUDIT_API_URL ?? null;
-  if (path.startsWith("/accounts") || path.startsWith("/beneficiaries") || path.startsWith("/transfers")) {
+  if (path.startsWith("/accounts") || path.startsWith("/beneficiaries") || path.startsWith("/transfers") || path.startsWith("/payment-links")) {
     return process.env.PAYMENTS_API_URL ?? null;
   }
   return null;
@@ -23,6 +23,10 @@ function allowed(path: string, method: string) {
   const route = `${method} ${path}`;
   if (["POST /auth/register", "POST /auth/login", "POST /auth/refresh", "POST /auth/logout", "GET /auth/me"].includes(route)) return true;
   if (["GET /accounts", "POST /accounts/bootstrap", "GET /beneficiaries", "GET /transfers", "POST /transfers"].includes(route)) return true;
+  if (["GET /payment-links", "POST /payment-links", "POST /payment-links/resolve", "POST /payment-links/pay"].includes(route)) return true;
+  if (/^GET \/payment-links\/[0-9a-f-]{36}$/i.test(route)
+    || /^GET \/payment-links\/[0-9a-f-]{36}\/share-token$/i.test(route)
+    || /^POST \/payment-links\/[0-9a-f-]{36}\/cancel$/i.test(route)) return true;
   return /^GET \/transfers\/[0-9a-f-]{36}$/i.test(route)
     || /^GET \/transfers\/[0-9a-f-]{36}\/audit$/i.test(route)
     || /^POST \/transfers\/[0-9a-f-]{36}\/reversals$/i.test(route);

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeftRight, CircleUserRound, LayoutDashboard, LogOut, Menu, ReceiptText, Wallet, X } from "lucide-react";
+import { ArrowLeftRight, CircleUserRound, LayoutDashboard, Link2, LogOut, Menu, ReceiptText, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError, api, type User } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 const nav = [
   { href: "/accounts", label: "Resumen", icon: LayoutDashboard },
   { href: "/transfers/new", label: "Nueva transferencia", icon: ArrowLeftRight },
+  { href: "/payment-links", label: "Cobros", icon: Link2 },
   { href: "/transfers", label: "Movimientos", icon: ReceiptText },
 ];
 export function PortalShell({ children }: { children: ReactNode }) {

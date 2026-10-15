@@ -6,6 +6,10 @@ export type Beneficiary = BrowserComponents["schemas"]["Beneficiary"];
 export type Transfer = BrowserComponents["schemas"]["Transfer"];
 export type AuditPage = BrowserComponents["schemas"]["AuditPage"];
 export type TransferPage = BrowserComponents["schemas"]["TransferPage"];
+export type PaymentLink = BrowserComponents["schemas"]["PaymentLink"];
+export type PaymentLinkPage = BrowserComponents["schemas"]["PaymentLinkPage"];
+export type PaymentLinkCheckout = BrowserComponents["schemas"]["PaymentLinkCheckout"];
+export type PaymentLinkPayment = BrowserComponents["schemas"]["PaymentLinkPayment"];
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code?: string, public retryAfter?: string) {
@@ -37,9 +41,9 @@ async function coordinatedRefresh() {
   return false;
 }
 
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+export async function api<T>(path: string, init?: RequestInit, options: { redirectOnUnauthorized?: boolean } = {}): Promise<T> {
   let response = await rawBrowserFetch(path, init);
-  if (response.status === 401 && !path.startsWith("/auth/")) {
+  if (response.status === 401 && !path.startsWith("/auth/") && options.redirectOnUnauthorized !== false) {
     const refreshed = await coordinatedRefresh();
     if (refreshed) response = await rawBrowserFetch(path, init);
     else {
